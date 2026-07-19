@@ -1,0 +1,173 @@
+﻿using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Windows.Forms;
+
+namespace myhousing
+{
+    // تغيير اسم الكلاس إلى LoginForm ليتوافق مع مشروعك الحالي
+    public partial class LoginForm : Form
+    {
+        private Panel pnlMainCard;
+        private Label lblHeading;
+        private Label lblSubHeading;
+        private Label lblUserTitle;
+        private Label lblPassTitle;
+        private TextBox txtUser;
+        private TextBox txtPass;
+        private Button btnLogin;
+        private Button btnExit;
+        private Panel pnlUserUnderline;
+        private Panel pnlPassUnderline;
+
+        public LoginForm()
+        {
+            // إعدادات الشاشة الأساسية
+            this.Size = new Size(460, 600);
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.StartPosition = FormStartPosition.CenterScreen;
+
+            // بناء التصميم الفاخر تلقائياً برمجياً لتجنب أخطاء الديزاينر القديمة
+            CreatePremiumLayout();
+        }
+
+        // دالة مدمجة بديلة عن دالة الـ Designer لتنظيف مشروعك
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            this.ClientSize = new Size(460, 600);
+            this.Name = "LoginForm";
+            this.Text = "Login";
+            this.ResumeLayout(false);
+        }
+
+        private void CreatePremiumLayout()
+        {
+            // الكارد الزجاجي المظلم الداخلي
+            pnlMainCard = new Panel();
+            pnlMainCard.Size = new Size(390, 490);
+            pnlMainCard.Location = new Point((this.Width - pnlMainCard.Width) / 2, (this.Height - pnlMainCard.Height) / 2);
+            pnlMainCard.BackColor = Color.FromArgb(22, 28, 45);
+            this.Controls.Add(pnlMainCard);
+
+            // زر الخروج الذكي ✕
+            btnExit = new Button();
+            btnExit.Text = "✕";
+            btnExit.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            btnExit.ForeColor = Color.FromArgb(100, 116, 139);
+            btnExit.BackColor = Color.Transparent;
+            btnExit.FlatStyle = FlatStyle.Flat;
+            btnExit.FlatAppearance.BorderSize = 0;
+            btnExit.Size = new Size(35, 35);
+            btnExit.Location = new Point(this.Width - 40, 8);
+            btnExit.Cursor = Cursors.Hand;
+            btnExit.Click += (s, e) => Application.Exit();
+            btnExit.MouseEnter += (s, e) => btnExit.ForeColor = Color.FromArgb(239, 68, 68);
+            btnExit.MouseLeave += (s, e) => btnExit.ForeColor = Color.FromArgb(100, 116, 139);
+            this.Controls.Add(btnExit);
+
+            // نصوص العناوين
+            lblHeading = new Label();
+            lblHeading.Text = "Welcome Back";
+            lblHeading.Font = new Font("Segoe UI", 24, FontStyle.Bold);
+            lblHeading.ForeColor = Color.White;
+            lblHeading.Size = new Size(330, 45);
+            lblHeading.Location = new Point(30, 35);
+            lblHeading.TextAlign = ContentAlignment.MiddleCenter;
+            pnlMainCard.Controls.Add(lblHeading);
+
+            lblSubHeading = new Label();
+            lblSubHeading.Text = "Sign in to access your portal";
+            lblSubHeading.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
+            lblSubHeading.ForeColor = Color.FromArgb(148, 163, 184);
+            lblSubHeading.Size = new Size(330, 22);
+            lblSubHeading.Location = new Point(30, 80);
+            lblSubHeading.TextAlign = ContentAlignment.MiddleCenter;
+            pnlMainCard.Controls.Add(lblSubHeading);
+
+            // حقل اسم المستخدم
+            lblUserTitle = new Label();
+            lblUserTitle.Text = "USERNAME OR EMAIL";
+            lblUserTitle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+            lblUserTitle.ForeColor = Color.FromArgb(56, 189, 248);
+            lblUserTitle.Size = new Size(330, 18);
+            lblUserTitle.Location = new Point(30, 145);
+            pnlMainCard.Controls.Add(lblUserTitle);
+
+            txtUser = new TextBox();
+            txtUser.Font = new Font("Segoe UI", 12);
+            txtUser.BackColor = Color.FromArgb(15, 23, 42);
+            txtUser.ForeColor = Color.White;
+            txtUser.BorderStyle = BorderStyle.None;
+            txtUser.Size = new Size(330, 28);
+            txtUser.Location = new Point(30, 170);
+            pnlMainCard.Controls.Add(txtUser);
+
+            pnlUserUnderline = new Panel();
+            pnlUserUnderline.Size = new Size(330, 2);
+            pnlUserUnderline.BackColor = Color.FromArgb(51, 65, 85);
+            pnlUserUnderline.Location = new Point(30, 202);
+            pnlMainCard.Controls.Add(pnlUserUnderline);
+            txtUser.Enter += (s, e) => pnlUserUnderline.BackColor = Color.FromArgb(56, 189, 248);
+            txtUser.Leave += (s, e) => pnlUserUnderline.BackColor = Color.FromArgb(51, 65, 85);
+
+            // حقل كلمة المرور
+            lblPassTitle = new Label();
+            lblPassTitle.Text = "PASSWORD";
+            lblPassTitle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+            lblPassTitle.ForeColor = Color.FromArgb(56, 189, 248);
+            lblPassTitle.Size = new Size(330, 18);
+            lblPassTitle.Location = new Point(30, 235);
+            pnlMainCard.Controls.Add(lblPassTitle);
+
+            txtPass = new TextBox();
+            txtPass.Font = new Font("Segoe UI", 12);
+            txtPass.PasswordChar = '●';
+            txtPass.BackColor = Color.FromArgb(15, 23, 42);
+            txtPass.ForeColor = Color.White;
+            txtPass.BorderStyle = BorderStyle.None;
+            txtPass.Size = new Size(330, 28);
+            txtPass.Location = new Point(30, 260);
+            pnlMainCard.Controls.Add(txtPass);
+
+            pnlPassUnderline = new Panel();
+            pnlPassUnderline.Size = new Size(330, 2);
+            pnlPassUnderline.BackColor = Color.FromArgb(51, 65, 85);
+            pnlPassUnderline.Location = new Point(30, 292);
+            pnlMainCard.Controls.Add(pnlPassUnderline);
+            txtPass.Enter += (s, e) => pnlPassUnderline.BackColor = Color.FromArgb(56, 189, 248);
+            txtPass.Leave += (s, e) => pnlPassUnderline.BackColor = Color.FromArgb(51, 65, 85);
+
+            // زر الدخول النيون الفاخر
+            btnLogin = new Button();
+            btnLogin.Text = "LOGIN TO SYSTEM";
+            btnLogin.Font = new Font("Segoe UI", 11.5F, FontStyle.Bold);
+            btnLogin.ForeColor = Color.White;
+            btnLogin.BackColor = Color.FromArgb(14, 165, 233);
+            btnLogin.FlatStyle = FlatStyle.Flat;
+            btnLogin.FlatAppearance.BorderSize = 0;
+            btnLogin.Size = new Size(330, 46);
+            btnLogin.Location = new Point(30, 365);
+            btnLogin.Cursor = Cursors.Hand;
+            pnlMainCard.Controls.Add(btnLogin);
+
+            btnLogin.MouseEnter += (s, e) => btnLogin.BackColor = Color.FromArgb(2, 132, 199);
+            btnLogin.MouseLeave += (s, e) => btnLogin.BackColor = Color.FromArgb(14, 165, 233);
+        }
+
+        // رسم تدرج الخلفية الاحترافي والعميق
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            using (LinearGradientBrush premiumBrush = new LinearGradientBrush(
+                this.ClientRectangle,
+                Color.FromArgb(11, 16, 29),   // كحلي ليلي عميق
+                Color.FromArgb(23, 28, 41),   // ماغنيسيوم مودرن داكن
+                55F))
+            {
+                e.Graphics.FillRectangle(premiumBrush, this.ClientRectangle);
+            }
+        }
+    }
+}

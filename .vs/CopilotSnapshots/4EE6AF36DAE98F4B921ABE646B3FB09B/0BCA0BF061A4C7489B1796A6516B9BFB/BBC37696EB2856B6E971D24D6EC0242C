@@ -1,0 +1,101 @@
+﻿using System;
+using System.Data;
+using System.Data.SqlClient;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace HousingProject
+{
+    public partial class Form1 : Form
+    {
+        // 1. تعريف الذاكرة المؤقتة (Cache) لحفظ البيانات داخل الرام لتسريع البحث
+        private DataTable _cachedHousing = new DataTable();
+
+        // نص الاتصال بقاعدة البيانات الخاصة بك
+        private readonly string _connectionString = @"Server=ABENAMAR810\SQLEXPRESS;Database=HousingDB;Trusted_Connection=True;MultipleActiveResultSets=True;";
+
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        // 2. حدث تشغيل البرنامج الأولي (يتم استدعاؤه تلقائياً عند فتح الواجهة)
+        private async void Form1_Load(object sender, EventArgs e)
+        {
+            try
+            {
+                // شحن البيانات وتحديث الواجهة فوراً عند فتح البرنامج
+                await RefreshHousingDataAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("حدث خطأ أثناء تحميل البيانات: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // 3. دالة جلب البيانات من SQL Server بشكل غير متزامن فائق السرعة
+        private async Task<DataTable> GetHousingDataFromDbAsync()
+        {
+            DataTable dt = new DataTable();
+
+            using (SqlConnection conn = new SqlConnection(_connectionString))
+            {
+                // الاستعلام يعتمد على الأسماء الحقيقية لأعمدتك في قاعدة البيانات
+                string query = "SELECT HousingID, RoomNumber, DetailedAddress FROM dbo.HousingInfo";
+
+                using (SqlCommand cmd = new SqlCommand(query, conn))
+                {
+                    await conn.OpenAsync();
+                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                    {
+                        dt.Load(reader);
+                    }
+                }
+            }
+            return dt;
+        }
+
+        // 4. دالة تحديث الكاش المحلي وربطه بالـ DataGridView وتحديث بطاقات الـ Dashboard
+        public async Task RefreshHousingDataAsync()
+        {
+            // جلب البيانات من القاعدة وحفظها في الرام فوراً
+            _cachedHousing = await GetHousingDataFromDbAsync();
+
+            // ربط الجدول المرئي (DataGridView) بالذاكرة المحلية بسرعة خاطفة
+            dgvHousing.DataSource = _cachedHousing;
+
+            // تحديث بطاقات الإحصائيات (Dashboard) محلياً بدون إرهاق السيرفر
+            UpdateDashboardLabels();
+        }
+
+        // 5. دالة حساب إحصائيات الـ Dashboard من الذاكرة المحلية مباشرة
+        private void UpdateDashboardLabels()
+        {
+            if (_cachedHousing != null)
+            {
+                // حساب إجمالي الغرف أو المساكن المتوفرة في الجدول
+                int totalHouses = _cachedHousing.Rows.Count;
+
+                // عرض النتيجة في بطاقة الإحصائيات (تأكد من مطابقة اسم الـ Label لديك)
+                lblTotalHouses.Text = totalHouses.ToString();
+            }
+        }
+
+        // 6. كود البحث الفوري والذكي (يُستدعى تلقائياً عند الكتابة في مربع البحث)
+        private void txtSearch_TextChanged(object sender, EventArgs e)
+        {
+            // التحقق من أن الذاكرة المؤقتة تحتوي على بيانات قبل بدء التصفية
+            if (_cachedHousing != null && _cachedHousing.Rows.Count > 0)
+            {
+                DataView dv = _cachedHousing.DefaultView;
+
+                // التصفية الفورية بناءً على رقم الغرفة أو العنوان التفصيلي وحماية الكود من الرموز الخاصة
+                string searchText = txtSearch.Text.Trim().Replace("'", "''");
+                dv.RowFilter = string.Format("RoomNumber LIKE '%{0}%' OR DetailedAddress LIKE '%{0}%'", searchText);
+
+                // تحديث الجدول المعروض بالنتائج المفلترة فوراً
+                dgvHousing.DataSource = dv.ToTable();
+            }
+        }
+    }
+}

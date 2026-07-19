@@ -1,0 +1,612 @@
+﻿using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Windows.Forms;
+
+cmbNewStatus = new ComboBox
+{
+    BackColor = inputBgColor,
+    ForeColor = Color.White,
+    Font = new Font("Segoe UI", 11, FontStyle.Regular),
+    Location = new Point(280, yPos + 4 * spacing + 55),
+    Size = new Size(200, 35),
+    FlatStyle = FlatStyle.Flat
+};
+cmbNewStatus.Items.AddRange(new string[] { "Available", "Rented", "Under Maintenance" });
+cmbNewStatus.SelectedIndex = 0;
+pnlAddHouseDialog.Controls.Add(cmbNewStatus);
+
+Button btnSave = new Button
+{
+    Text = "SAVE",
+    BackColor = buttonColor,
+    ForeColor = Color.White,
+    Font = new Font("Segoe UI", 11, FontStyle.Bold),
+    Location = new Point(20, yPos + 4 * spacing + 110),
+    Size = new Size(220, 45),
+    FlatStyle = FlatStyle.Flat,
+    Cursor = Cursors.Hand
+};
+btnSave.FlatAppearance.BorderSize = 0;
+
+Button btnCancel = new Button
+{
+    Text = "CANCEL",
+    BackColor = Color.FromArgb(70, 60, 80),
+    ForeColor = Color.White,
+    Font = new Font("Segoe UI", 11, FontStyle.Bold),
+    Location = new Point(260, yPos + 4 * spacing + 110),
+    Size = new Size(220, 45),
+    FlatStyle = FlatStyle.Flat,
+    Cursor = Cursors.Hand
+};
+btnCancel.FlatAppearance.BorderSize = 0;
+
+btnSave.Click += (s, e) => {
+    if (ValidateHouseInput())
+    {
+        string nextID = (houseList.Count + 1).ToString();
+        houseList.Add(new House
+        {
+            ID = nextID,
+            Name = txtNewName.Text == "House Name" ? "" : txtNewName.Text,
+            Address = txtNewAddress.Text == "Address" ? "" : txtNewAddress.Text,
+            Status = cmbNewStatus.SelectedItem.ToString(),
+            Price = decimal.TryParse(txtNewPrice.Text, out decimal price) ? price : 0,
+            Bedrooms = int.TryParse(txtNewBedrooms.Text, out int beds) ? beds : 0,
+            Bathrooms = int.TryParse(txtNewBathrooms.Text, out int baths) ? baths : 0,
+            SquareFeet = double.TryParse(txtNewSquareFeet.Text, out double sqft) ? sqft : 0,
+            OwnerName = txtNewOwner.Text == "Owner Name" ? "" : txtNewOwner.Text,
+            OwnerPhone = txtNewPhone.Text == "Owner Phone" ? "" : txtNewPhone.Text,
+            DateAdded = DateTime.Now,
+            Description = txtNewDescription.Text == "Description" ? "" : txtNewDescription.Text
+        });
+
+        ResetAddDialogFields();
+        pnlAddHouseDialog.Visible = false;
+        isDataChanged = true;
+        ShowHousesGrid();
+        UpdateStatusBar();
+        SaveData();
+    }
+};
+
+btnCancel.Click += (s, e) => {
+    ResetAddDialogFields();
+    pnlAddHouseDialog.Visible = false;
+};
+
+pnlAddHouseDialog.Controls.Add(btnSave);
+pnlAddHouseDialog.Controls.Add(btnCancel);
+        }
+
+        private TextBox CreateDialogTextBox(string placeholder, int x, int y, int width = 240)
+{
+    TextBox txt = new TextBox
+    {
+        Text = placeholder,
+        BackColor = inputBgColor,
+        ForeColor = Color.DarkGray,
+        Font = new Font("Segoe UI", 11, FontStyle.Regular),
+        Location = new Point(x, y),
+        Size = new Size(width, 35),
+        BorderStyle = BorderStyle.FixedSingle
+    };
+
+    txt.Enter += (s, e) => {
+        if (txt.Text == placeholder)
+        {
+            txt.Text = "";
+            txt.ForeColor = Color.White;
+        }
+    };
+
+    txt.Leave += (s, e) => {
+        if (string.IsNullOrWhiteSpace(txt.Text))
+        {
+            txt.Text = placeholder;
+            txt.ForeColor = Color.DarkGray;
+        }
+    };
+
+    return txt;
+}
+
+private bool ValidateHouseInput()
+{
+    string name = txtNewName.Text == "House Name" ? "" : txtNewName.Text;
+    string address = txtNewAddress.Text == "Address" ? "" : txtNewAddress.Text;
+
+    if (string.IsNullOrWhiteSpace(name))
+    {
+        MessageBox.Show("Please enter a house name.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        txtNewName.Focus();
+        return false;
+    }
+
+    if (string.IsNullOrWhiteSpace(address))
+    {
+        MessageBox.Show("Please enter an address.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        txtNewAddress.Focus();
+        return false;
+    }
+
+    if (!decimal.TryParse(txtNewPrice.Text, out _))
+    {
+        MessageBox.Show("Please enter a valid price.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        txtNewPrice.Focus();
+        return false;
+    }
+
+    return true;
+}
+
+private void ResetAddDialogFields()
+{
+    txtNewName.Text = "House Name";
+    txtNewName.ForeColor = Color.DarkGray;
+    txtNewAddress.Text = "Address";
+    txtNewAddress.ForeColor = Color.DarkGray;
+    txtNewPrice.Text = "";
+    txtNewPrice.ForeColor = Color.White;
+    txtNewBedrooms.Text = "";
+    txtNewBedrooms.ForeColor = Color.White;
+    txtNewBathrooms.Text = "";
+    txtNewBathrooms.ForeColor = Color.White;
+    txtNewSquareFeet.Text = "";
+    txtNewSquareFeet.ForeColor = Color.White;
+    txtNewOwner.Text = "Owner Name";
+    txtNewOwner.ForeColor = Color.DarkGray;
+    txtNewPhone.Text = "Owner Phone";
+    txtNewPhone.ForeColor = Color.DarkGray;
+    txtNewDescription.Text = "Description";
+    txtNewDescription.ForeColor = Color.DarkGray;
+    cmbNewStatus.SelectedIndex = 0;
+}
+
+private void BuildEditHouseDialog()
+{
+    pnlEditHouseDialog = new Panel();
+    pnlEditHouseDialog.Size = new Size(500, 480);
+    pnlEditHouseDialog.Location = new Point((960 - 500) / 2, (670 - 480) / 2);
+    pnlEditHouseDialog.BackColor = Color.FromArgb(35, 22, 48);
+    pnlEditHouseDialog.BorderStyle = BorderStyle.FixedSingle;
+    pnlEditHouseDialog.Visible = false;
+    pnlMainContent.Controls.Add(pnlEditHouseDialog);
+    ApplyRoundedCorners(pnlEditHouseDialog, 15);
+
+    lblEditTitle = new Label
+    {
+        Text = "Edit House",
+        Font = new Font("Segoe UI", 16, FontStyle.Bold),
+        ForeColor = Color.White,
+        Location = new Point(20, 15),
+        Size = new Size(200, 35)
+    };
+    pnlEditHouseDialog.Controls.Add(lblEditTitle);
+
+    int yPos = 70;
+    int spacing = 50;
+
+    txtEditName = CreateDialogTextBox("House Name", 20, yPos);
+    pnlEditHouseDialog.Controls.Add(txtEditName);
+
+    txtEditAddress = CreateDialogTextBox("Address", 20, yPos + spacing);
+    pnlEditHouseDialog.Controls.Add(txtEditAddress);
+
+    txtEditPrice = CreateDialogTextBox("Price ($)", 20, yPos + 2 * spacing);
+    pnlEditHouseDialog.Controls.Add(txtEditPrice);
+
+    txtEditBedrooms = CreateDialogTextBox("Bedrooms", 280, yPos);
+    pnlEditHouseDialog.Controls.Add(txtEditBedrooms);
+
+    txtEditBathrooms = CreateDialogTextBox("Bathrooms", 280, yPos + spacing);
+    pnlEditHouseDialog.Controls.Add(txtEditBathrooms);
+
+    txtEditSquareFeet = CreateDialogTextBox("Square Feet", 280, yPos + 2 * spacing);
+    pnlEditHouseDialog.Controls.Add(txtEditSquareFeet);
+
+    txtEditOwner = CreateDialogTextBox("Owner Name", 20, yPos + 3 * spacing);
+    pnlEditHouseDialog.Controls.Add(txtEditOwner);
+
+    txtEditPhone = CreateDialogTextBox("Owner Phone", 280, yPos + 3 * spacing);
+    pnlEditHouseDialog.Controls.Add(txtEditPhone);
+
+    txtEditDescription = CreateDialogTextBox("Description", 20, yPos + 4 * spacing, 460);
+    pnlEditHouseDialog.Controls.Add(txtEditDescription);
+
+    cmbEditStatus = new ComboBox
+    {
+        BackColor = inputBgColor,
+        ForeColor = Color.White,
+        Font = new Font("Segoe UI", 11, FontStyle.Regular),
+        Location = new Point(280, yPos + 4 * spacing + 55),
+        Size = new Size(200, 35),
+        FlatStyle = FlatStyle.Flat
+    };
+    cmbEditStatus.Items.AddRange(new string[] { "Available", "Rented", "Under Maintenance" });
+    cmbEditStatus.SelectedIndex = 0;
+    pnlEditHouseDialog.Controls.Add(cmbEditStatus);
+
+    Button btnUpdate = new Button
+    {
+        Text = "UPDATE",
+        BackColor = editBtnColor,
+        ForeColor = Color.White,
+        Font = new Font("Segoe UI", 11, FontStyle.Bold),
+        Location = new Point(20, yPos + 4 * spacing + 110),
+        Size = new Size(220, 45),
+        FlatStyle = FlatStyle.Flat,
+        Cursor = Cursors.Hand
+    };
+    btnUpdate.FlatAppearance.BorderSize = 0;
+
+    Button btnCancelEdit = new Button
+    {
+        Text = "CANCEL",
+        BackColor = Color.FromArgb(70, 60, 80),
+        ForeColor = Color.White,
+        Font = new Font("Segoe UI", 11, FontStyle.Bold),
+        Location = new Point(260, yPos + 4 * spacing + 110),
+        Size = new Size(220, 45),
+        FlatStyle = FlatStyle.Flat,
+        Cursor = Cursors.Hand
+    };
+    btnCancelEdit.FlatAppearance.BorderSize = 0;
+
+    btnUpdate.Click += (s, e) => {
+        if (ValidateEditInput())
+        {
+            var house = houseList.FirstOrDefault(h => h.ID == editingHouseId);
+            if (house != null)
+            {
+                house.Name = txtEditName.Text == "House Name" ? "" : txtEditName.Text;
+                house.Address = txtEditAddress.Text == "Address" ? "" : txtEditAddress.Text;
+                house.Status = cmbEditStatus.SelectedItem.ToString();
+                house.Price = decimal.TryParse(txtEditPrice.Text, out decimal price) ? price : 0;
+                house.Bedrooms = int.TryParse(txtEditBedrooms.Text, out int beds) ? beds : 0;
+                house.Bathrooms = int.TryParse(txtEditBathrooms.Text, out int baths) ? baths : 0;
+                house.SquareFeet = double.TryParse(txtEditSquareFeet.Text, out double sqft) ? sqft : 0;
+                house.OwnerName = txtEditOwner.Text == "Owner Name" ? "" : txtEditOwner.Text;
+                house.OwnerPhone = txtEditPhone.Text == "Owner Phone" ? "" : txtEditPhone.Text;
+                house.Description = txtEditDescription.Text == "Description" ? "" : txtEditDescription.Text;
+
+                isDataChanged = true;
+                pnlEditHouseDialog.Visible = false;
+                ShowHousesGrid();
+                UpdateStatusBar();
+                SaveData();
+            }
+        }
+    };
+
+    btnCancelEdit.Click += (s, e) => {
+        pnlEditHouseDialog.Visible = false;
+    };
+
+    pnlEditHouseDialog.Controls.Add(btnUpdate);
+    pnlEditHouseDialog.Controls.Add(btnCancelEdit);
+}
+
+private bool ValidateEditInput()
+{
+    string name = txtEditName.Text == "House Name" ? "" : txtEditName.Text;
+    string address = txtEditAddress.Text == "Address" ? "" : txtEditAddress.Text;
+
+    if (string.IsNullOrWhiteSpace(name))
+    {
+        MessageBox.Show("Please enter a house name.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        txtEditName.Focus();
+        return false;
+    }
+
+    if (string.IsNullOrWhiteSpace(address))
+    {
+        MessageBox.Show("Please enter an address.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        txtEditAddress.Focus();
+        return false;
+    }
+
+    if (!decimal.TryParse(txtEditPrice.Text, out _))
+    {
+        MessageBox.Show("Please enter a valid price.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        txtEditPrice.Focus();
+        return false;
+    }
+
+    return true;
+}
+
+private void BuildHouseDetailsDialog()
+{
+    // This would be a detailed view dialog - keeping it simple for now
+}
+
+private void HandleEditHouse()
+{
+    if (dgvHouses.SelectedRows.Count > 0)
+    {
+        string houseId = dgvHouses.SelectedRows[0].Cells["ID"].Value.ToString();
+        var house = houseList.FirstOrDefault(h => h.ID == houseId);
+
+        if (house != null)
+        {
+            editingHouseId = houseId;
+            lblEditTitle.Text = $"Edit House - {house.Name}";
+
+            txtEditName.Text = house.Name;
+            txtEditName.ForeColor = Color.White;
+            txtEditAddress.Text = house.Address;
+            txtEditAddress.ForeColor = Color.White;
+            txtEditPrice.Text = house.Price.ToString();
+            txtEditPrice.ForeColor = Color.White;
+            txtEditBedrooms.Text = house.Bedrooms.ToString();
+            txtEditBedrooms.ForeColor = Color.White;
+            txtEditBathrooms.Text = house.Bathrooms.ToString();
+            txtEditBathrooms.ForeColor = Color.White;
+            txtEditSquareFeet.Text = house.SquareFeet.ToString();
+            txtEditSquareFeet.ForeColor = Color.White;
+            txtEditOwner.Text = string.IsNullOrEmpty(house.OwnerName) ? "Owner Name" : house.OwnerName;
+            txtEditOwner.ForeColor = string.IsNullOrEmpty(house.OwnerName) ? Color.DarkGray : Color.White;
+            txtEditPhone.Text = string.IsNullOrEmpty(house.OwnerPhone) ? "Owner Phone" : house.OwnerPhone;
+            txtEditPhone.ForeColor = string.IsNullOrEmpty(house.OwnerPhone) ? Color.DarkGray : Color.White;
+            txtEditDescription.Text = string.IsNullOrEmpty(house.Description) ? "Description" : house.Description;
+            txtEditDescription.ForeColor = string.IsNullOrEmpty(house.Description) ? Color.DarkGray : Color.White;
+            cmbEditStatus.SelectedItem = house.Status;
+
+            pnlEditHouseDialog.Visible = true;
+            pnlEditHouseDialog.BringToFront();
+        }
+    }
+}
+
+private void HandleDeleteHouse()
+{
+    if (dgvHouses.SelectedRows.Count > 0)
+    {
+        string houseId = dgvHouses.SelectedRows[0].Cells["ID"].Value.ToString();
+        string houseName = dgvHouses.SelectedRows[0].Cells["Name"].Value.ToString();
+
+        DialogResult result = MessageBox.Show($"Are you sure you want to delete '{houseName}'?",
+                                              "Confirm Delete",
+                                              MessageBoxButtons.YesNo,
+                                              MessageBoxIcon.Warning);
+
+        if (result == DialogResult.Yes)
+        {
+            var target = houseList.FirstOrDefault(h => h.ID == houseId);
+            if (target != null)
+            {
+                houseList.Remove(target);
+
+                for (int i = 0; i < houseList.Count; i++)
+                {
+                    houseList[i].ID = (i + 1).ToString();
+                }
+
+                isDataChanged = true;
+                txtSearch.Text = " 🔍 Search...";
+                txtSearch.ForeColor = Color.DarkGray;
+                txtSearch.Font = new Font("Segoe UI", 11, FontStyle.Italic);
+                cmbStatusFilter.SelectedIndex = 0;
+
+                ShowHousesGrid();
+                btnDeleteHouse.Visible = false;
+                btnEditHouse.Visible = false;
+                UpdateStatusBar();
+                SaveData();
+            }
+        }
+    }
+}
+
+private void FilterHouses(string keyword)
+{
+    if (string.IsNullOrWhiteSpace(keyword))
+    {
+        ShowHousesGrid();
+        return;
+    }
+
+    dgvHouses.Rows.Clear();
+    var filtered = houseList.Where(h =>
+        h.Name.ToLower().Contains(keyword.ToLower()) ||
+        h.Address.ToLower().Contains(keyword.ToLower()) ||
+        h.OwnerName.ToLower().Contains(keyword.ToLower()) ||
+        h.ID.Contains(keyword)).ToList();
+
+    foreach (var house in filtered)
+    {
+        AddHouseToGrid(house);
+    }
+
+    lblTotalRecords.Text = $"Showing {filtered.Count} of {houseList.Count} houses";
+}
+
+private void FilterByStatus(string status)
+{
+    dgvHouses.Rows.Clear();
+    var filtered = houseList.Where(h => h.Status == status).ToList();
+
+    foreach (var house in filtered)
+    {
+        AddHouseToGrid(house);
+    }
+
+    lblTotalRecords.Text = $"Showing {filtered.Count} of {houseList.Count} houses";
+}
+
+private void AddHouseToGrid(House house)
+{
+    dgvHouses.Rows.Add(
+        house.ID,
+        house.Name,
+        house.Address,
+        house.Status,
+        house.Price,
+        house.Bedrooms,
+        house.Bathrooms,
+        house.SquareFeet,
+        house.OwnerName
+    );
+}
+
+private void ShowHousesGrid()
+{
+    SetActiveButton(btnHouses);
+
+    lblSectionTitle.Text = "Manage Houses";
+    dgvHouses.Visible = true;
+    btnAddHouse.Visible = true;
+    txtSearch.Visible = true;
+    cmbStatusFilter.Visible = true;
+    btnDeleteHouse.Visible = dgvHouses.SelectedRows.Count > 0;
+    btnEditHouse.Visible = dgvHouses.SelectedRows.Count > 0;
+
+    cardTotalHouses.Visible = false;
+    cardAvailableHouses.Visible = false;
+    cardRentedHouses.Visible = false;
+    cardMaintenanceHouses.Visible = false;
+
+    if (txtSearch.Text == " 🔍 Search..." || string.IsNullOrWhiteSpace(txtSearch.Text))
+    {
+        dgvHouses.Rows.Clear();
+        foreach (var house in houseList)
+        {
+            AddHouseToGrid(house);
+        }
+        lblTotalRecords.Text = $"Total: {houseList.Count} houses";
+    }
+}
+
+private void ShowDashboardData()
+{
+    SetActiveButton(btnDashboard);
+
+    lblSectionTitle.Text = "Dashboard Overview";
+    dgvHouses.Visible = false;
+    btnAddHouse.Visible = false;
+    btnDeleteHouse.Visible = false;
+    btnEditHouse.Visible = false;
+    pnlAddHouseDialog.Visible = false;
+    pnlEditHouseDialog.Visible = false;
+    txtSearch.Visible = false;
+    cmbStatusFilter.Visible = false;
+
+    cardTotalHouses.Visible = true;
+    cardAvailableHouses.Visible = true;
+    cardRentedHouses.Visible = true;
+    cardMaintenanceHouses.Visible = true;
+
+    lblTotalValue.Text = houseList.Count.ToString();
+    lblAvailableValue.Text = houseList.Count(h => h.Status == "Available").ToString();
+    lblRentedValue.Text = houseList.Count(h => h.Status == "Rented").ToString();
+    lblMaintenanceValue.Text = houseList.Count(h => h.Status == "Under Maintenance").ToString();
+}
+
+private void ShowReports()
+{
+    MessageBox.Show("Reports feature coming soon!", "Reports", MessageBoxButtons.OK, MessageBoxIcon.Information);
+}
+
+private void ShowSettings()
+{
+    MessageBox.Show("Settings feature coming soon!", "Settings", MessageBoxButtons.OK, MessageBoxIcon.Information);
+}
+
+private void SetActiveButton(Button activeBtn)
+{
+    btnDashboard.BackColor = Color.Transparent;
+    btnHouses.BackColor = Color.Transparent;
+
+    activeBtn.BackColor = activeBtnColor;
+    try { activeBtn.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, activeBtn.Width, activeBtn.Height, 12, 12)); } catch { }
+}
+
+private void UpdateStatusBar()
+{
+    lblTotalRecords.Text = $"Total: {houseList.Count} houses | Last saved: {DateTime.Now:HH:mm:ss}";
+}
+
+private void ApplyRoundedCorners(Control control, int radius)
+{
+    try
+    {
+        control.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, control.Width, control.Height, radius, radius));
+    }
+    catch { }
+}
+
+private void HandleLogout()
+{
+    if (isDataChanged)
+    {
+        DialogResult result = MessageBox.Show("You have unsaved changes. Save before logging out?",
+                                              "Save Changes",
+                                              MessageBoxButtons.YesNoCancel,
+                                              MessageBoxIcon.Question);
+
+        if (result == DialogResult.Yes)
+        {
+            SaveData();
+        }
+        else if (result == DialogResult.Cancel)
+        {
+            return;
+        }
+    }
+
+    pnlSidebar.Visible = false;
+    pnlHeader.Visible = false;
+    pnlMainContent.Visible = false;
+    pnlGlassCard.Visible = true;
+    txtEmail.Text = "Username";
+    txtEmail.ForeColor = Color.DarkGray;
+    txtPassword.Text = "Password";
+    txtPassword.ForeColor = Color.DarkGray;
+    txtPassword.PasswordChar = '\0';
+    chkShowPassword.Checked = false;
+}
+
+protected override void OnPaint(PaintEventArgs e)
+{
+    base.OnPaint(e);
+
+    e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
+    e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+    using (LinearGradientBrush dualBrush = new LinearGradientBrush(
+        this.ClientRectangle,
+        Color.FromArgb(105, 30, 75),
+        Color.FromArgb(14, 12, 22),
+        65F))
+    {
+        e.Graphics.FillRectangle(dualBrush, this.ClientRectangle);
+    }
+}
+
+protected override void OnFormClosing(FormClosingEventArgs e)
+{
+    if (isDataChanged)
+    {
+        DialogResult result = MessageBox.Show("You have unsaved changes. Save before exiting?",
+                                              "Save Changes",
+                                              MessageBoxButtons.YesNoCancel,
+                                              MessageBoxIcon.Question);
+
+        if (result == DialogResult.Yes)
+        {
+            SaveData();
+        }
+        else if (result == DialogResult.Cancel)
+        {
+            e.Cancel = true;
+            return;
+        }
+    }
+
+    autoSaveTimer.Stop();
+    base.OnFormClosing(e);
+}
+    }
+}

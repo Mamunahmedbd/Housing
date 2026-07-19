@@ -1,0 +1,313 @@
+﻿using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Windows.Forms;
+
+namespace house_management
+{
+    public partial class Form1 : Form
+    {
+        // تعريف عناصر التصميم الحديثة
+        private Panel pnlGlassCard;
+        private Label lblWelcome;
+        private Label lblSubText;
+        private Label lblUserTitle;
+        private Label lblPassTitle;
+        private TextBox txtUser;
+        private TextBox txtPass;
+        private Button btnSubmit;
+        private Button btnExit;
+
+        public Form1()
+        {
+            InitializeComponent();
+            SetupFormProperties();
+            CreateGlassmorphicUI();
+        }
+
+        // إعدادات الشاشة الرئيسية (بدون حواف ويندوز التقليدية)
+        private void SetupFormProperties()
+        {
+            this.Size = new Size(850, 550); // مقاس عرضي فخم ومثالي جداً للتصميم
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.StartPosition = FormStartPosition.CenterScreen;
+        }
+
+        // بناء الواجهة الزجاجية والعناصر برمجياً
+        private void CreateGlassmorphicUI()
+        {
+            // 1. زر الخروج الذكي (✕) أعلى اليمين
+            btnExit = new Button();
+            btnExit.Text = "✕";
+            btnExit.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+            btnExit.ForeColor = Color.FromArgb(148, 163, 184);
+            btnExit.BackColor = Color.Transparent;
+            btnExit.FlatStyle = FlatStyle.Flat;
+            btnExit.FlatAppearance.BorderSize = 0;
+            btnExit.Size = new Size(40, 40);
+            btnExit.Location = new Point(this.Width - 45, 10);
+            btnExit.Cursor = Cursors.Hand;
+            btnExit.Click += (s, e) => Application.Exit();
+            btnExit.MouseEnter += (s, e) => btnExit.ForeColor = Color.FromArgb(239, 68, 68);
+            btnExit.MouseLeave += (s, e) => btnExit.ForeColor = Color.FromArgb(148, 163, 184);
+            this.Controls.Add(btnExit);
+
+            // 2. النص الترحيبي العريض على اليسار (Welcome!)
+            lblWelcome = new Label();
+            lblWelcome.Text = "Welcome!";
+            lblWelcome.Font = new Font("Segoe UI", 42, FontStyle.Bold);
+            lblWelcome.ForeColor = Color.White;
+            lblWelcome.BackColor = Color.Transparent;
+            lblWelcome.Size = new Size(350, 80);
+            lblWelcome.Location = new Point(70, 180);
+            this.Controls.Add(lblWelcome);
+
+            lblSubText = new Label();
+            lblSubText.Text = "Experience the next generation of building and housing management platforms.";
+            lblSubText.Font = new Font("Segoe UI", 11, FontStyle.Regular);
+            lblSubText.ForeColor = Color.FromArgb(203, 213, 225);
+            lblSubText.BackColor = Color.Transparent;
+            lblSubText.Size = new Size(320, 60);
+            lblSubText.Location = new Point(75, 270);
+            this.Controls.Add(lblSubText);
+
+            // 3. البطاقة الزجاجية شبه الشفافة يميناً (The Glass Card)
+            pnlGlassCard = new Panel();
+            pnlGlassCard.Size = new Size(360, 430);
+            pnlGlassCard.Location = new Point(430, 60);
+            pnlGlassCard.BackColor = Color.FromArgb(40, 255, 255, 255); // تأثير الزجاج الشفاف (Alpha = 40)
+            this.Controls.Add(pnlGlassCard);
+
+            // عنوان حركي Sign in داخل الكارد الزجاجي
+            Label lblSignIn = new Label();
+            lblSignIn.Text = "Sign in";
+            lblSignIn.Font = new Font("Segoe UI", 22, FontStyle.Bold);
+            lblSignIn.ForeColor = Color.White;
+            lblSignIn.BackColor = Color.Transparent;
+            lblSignIn.Size = new Size(280, 45);
+            lblSignIn.Location = new Point(40, 40);
+            pnlGlassCard.Controls.Add(lblSignIn);
+
+            // عنوان حقل المستخدم
+            lblUserTitle = new Label();
+            lblUserTitle.Text = "User Name";
+            lblUserTitle.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
+            lblUserTitle.ForeColor = Color.FromArgb(226, 232, 240);
+            lblUserTitle.BackColor = Color.Transparent;
+            lblUserTitle.Location = new Point(40, 120);
+            pnlGlassCard.Controls.Add(lblUserTitle);
+
+            // حقل إدخال اسم المستخدم
+            txtUser = new TextBox();
+            txtUser.Font = new Font("Segoe UI", 12);
+            // set panel to transparent so we control painting
+pnlGlassCard.BackColor = Color.Transparent;
+pnlGlassCard.Paint += (s, e) =>
+{
+    using (var brush = new SolidBrush(Color.FromArgb(40, 255, 255, 255)))
+        e.Graphics.FillRectangle(brush, pnlGlassCard.ClientRectangle);
+};
+
+// child controls: use opaque backgrounds (or no background for labels)
+txtUser.BackColor = Color.FromArgb(255, 255, 255); // opaque
+// create textboxes and button first
+txtUser = new TextBox();
+txtUser.Font = new Font("Segoe UI", 12);
+txtUser.BackColor = Color.FromArgb(255, 255, 255);
+txtUser.ForeColor = Color.White;
+txtUser.BorderStyle = BorderStyle.FixedSingle;
+txtUser.Size = new Size(280, 34);
+txtUser.Location = new Point(40, 145);
+pnlGlassCard.Controls.Add(txtUser);
+
+txtPass = new TextBox();
+txtPass.Font = new Font("Segoe UI", 12);
+txtPass.PasswordChar = '●';
+btnExit.BackColor = Color.Transparent; // line 44// remove or comment out this line:
+ // btnExit.BackColor = Color.Transparent;
+
+// keep the flat look:
+btnExit.FlatStyle = FlatStyle.Flat;
+btnExit.FlatAppearance.BorderSize = 0;var lblExit = new Label {
+    Text = "✕",
+    Font = new Font("Segoe UI", 12, FontStyle.Bold),
+    ForeColor = Color.FromArgb(148,163,184),
+    BackColor = Color.Transparent,
+    Size = new Size(40,40),
+    Location = new Point(this.Width - 45, 10),
+    Cursor = Cursors.Hand
+};
+lblExit.Click += (s,e) => Application.Exit();
+this.Controls.Add(lblExit);txtPass.BackColor =// make background fully opaque white (alpha = 255)
+txtPass.BackColor = Color.FromArgb(255, 255, 255, 255)// C#
+btnExit.BackColor = this.BackColor; // or a specific opaque color
+btnExit.FlatStyle = FlatStyle.Flat;
+btnExit.FlatAppearance.BorderSize = 0;// C#
+public class TransparentPanel : Panel
+{
+    public TransparentPanel()
+    {
+        SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+        BackColor = Color.Transparent;
+    }
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            var cp = base.CreateParams;
+            cp.ExStyle |= 0x20; // WS_EX_TRANSPARENT if you want click-through-style painting behavior
+            return cp;
+        }
+    }
+};// C#
+pnlGlassCard = new Panel {
+    Size = new Size(360, 430),
+    Location = new Point(430, 60),
+    BackColor = this.BackColor // keep opaque; we will paint the translucent overlay
+};
+pnlGlassCard.Paint += (s, e) =>
+{
+    using (var brush = new SolidBrush(Color.FromArgb(40, 255, 255, 255)))
+        e.Graphics.FillRectangle(brush, pnlGlassCard.ClientRectangle);
+};
+this.Controls.Add(pnlGlassCard);// C#
+btnExit = new Button();
+btnExit.Text = "✕";
+btnExit.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+btnExit.ForeColor = Color.FromArgb(148,163,184);
+btnExit.BackColor = this.BackColor; // or Color.Transparent only if control supports it
+btnExit.FlatStyle = FlatStyle.Flat;
+btnExit.FlatAppearance.BorderSize = 0;
+btnExit.Size = new Size(40,40);
+btnExit.Location = new Point(this.Width - 45, 10);
+btnExit.Cursor = Cursors.Hand;
+btnExit.Click += (s,e) => Application.Exit();
+this.Controls.Add(btnExit);// C#
+btnExit = new Button();
+btnExit.Text = "✕";
+btnExit.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+btnExit.ForeColor = Color.FromArgb(148,163,184);
+btnExit.BackColor = this.BackColor; // or Color.Transparent only if control supports it
+btnExit.FlatStyle = FlatStyle.Flat;
+btnExit.FlatAppearance.BorderSize = 0;
+btnExit.Size = new Size(40,40);
+btnExit.Location = new Point(this.Width - 45, 10);
+btnExit.Cursor = Cursors.Hand;
+btnExit.Click += (s,e) => Application.Exit();
+this.Controls.Add(btnExit);// C#
+txtUser = new TextBox {
+    Font = new Font("Segoe UI", 12),
+    BackColor = Color.White,
+    ForeColor = Color.Black,
+    BorderStyle = BorderStyle.FixedSingle,
+    Size = new Size(280, 34),
+    Location = new Point(40, 145)
+};
+pnlGlassCard.Controls.Add(txtUser);
+// or simply:
+txtPass.BackColor = Color.White; Color.FromArgb(60, 255, 255, 255);
+txtPass.ForeColor = Color.White;
+txtPass.BorderStyle = BorderStyle.FixedSingle;
+txtPass.Size = new Size(280, 34);
+txtPass.Location = new Point(40, 235);
+pnlGlassCard.Controls.Add(txtPass);
+
+btnSubmit = new Button();
+btnSubmit.Text = "Submit";
+btnSubmit.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+btnSubmit.ForeColor = Color.White;
+btnSubmit.BackColor = Color.FromArgb(244, 63, 94);
+btnSubmit.FlatStyle = FlatStyle.Flat;
+btnSubmit.FlatAppearance.BorderSize = 0;
+btnSubmit.Size = new Size( /* appropriate size */ );
+btnSubmit.Location = new Point( /* appropriate location */ );
+pnlGlassCard.Controls.Add(btnSubmit);
+
+// then add panel paint handler (only once)
+pnlGlassCard.BackColor = Color.Transparent;
+pnlGlassCard.Paint += (s, e) =>
+{
+    using (var brush = new SolidBrush(Color.FromArgb(40, 255, 255, 255)))
+        e.Graphics.FillRectangle(brush, pnlGlassCard.ClientRectangle);
+};txtPass.BackColor = Color.White;
+btnSubmit.BackColor = Color.FromArgb(255, 244, 63, 94); // opaque button color// set panel to transparent so we control painting
+pnlGlassCard.BackColor = Color.Transparent;
+pnlGlassCard.Paint += (s, e) =>
+{
+    using (var brush = new SolidBrush(Color.FromArgb(40, 255, 255, 255)))
+        e.Graphics.FillRectangle(brush, pnlGlassCard.ClientRectangle);
+};
+
+// child controls: use opaque backgrounds (or no background for labels)
+txtUser.BackColor = Color.FromArgb(255, 255, 255); // opaque
+txtPass.BackColor = Color.White;
+btnSubmit.BackColor = Color.FromArgb(255, 244, 63, 94); // opaque button colortxtUser.BackColor = Color.FromArgb(60, 255, 255, 255); // صندوق شفاف للكتابة
+            txtUser.ForeColor = Color.White;
+            txtUser.BorderStyle = BorderStyle.FixedSingle;
+            txtUser.Size = new Size(280, 34);
+            txtUser.Location = new Point(40, 145);
+            pnlGlassCard.Controls.Add(txtUser);
+
+            // عنوان حقل كلمة المرور
+            lblPassTitle = new Label();
+            lblPassTitle.Text = "Password";
+            lblPassTitle.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
+            lblPassTitle.ForeColor = Color.FromArgb(226, 232, 240);
+            lblPassTitle.BackColor = Color.Transparent;
+            lblPassTitle.Location = new Point(40, 210);
+            pnlGlassCard.Controls.Add(lblPassTitle);
+
+            // حقل إدخال كلمة المرور
+            txtPass = new TextBox();
+            txtPass.Font = new Font("Segoe UI", 12);
+            txtPass.PasswordChar = '●';
+            txtPass.BackColor = Color.FromArgb(60, 255, 255, 255);
+            txtPass.ForeColor = Color.White;
+            txtPass.BorderStyle = BorderStyle.FixedSingle;
+            txtPass.Size = new Size(280, 34);
+            txtPass.Location = new Point(40, 235);
+            pnlGlassCard.Controls.Add(txtPass);
+
+            // 4. زر الإرسال الملون الفخم المتدرج (Submit Button)
+            btnSubmit = new Button();
+            btnSubmit.Text = "Submit";
+            btnSubmit.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+            btnSubmit.ForeColor = Color.White;
+            btnSubmit.BackColor = Color.FromArgb(244, 63, 94); // لون مرجاني نيون فخم جداً من درجات الـ Gradient
+            btnSubmit.FlatStyle = FlatStyle.Flat;
+            btnSubmit.FlatAppearance.BorderSize = 0;
+            btnSubmit.Size = new Size(280, 45);
+            btnSubmit.Location = new Point(40, 320);
+            btnSubmit.Cursor = Cursors.Hand;
+            pnlGlassCard.Controls.Add(btnSubmit);
+
+            // تأثيرات حركة للزر عند تمرير الماوس
+            btnSubmit.MouseEnter += (s, e) => btnSubmit.BackColor = Color.FromArgb(225, 29, 72);
+            btnSubmit.MouseLeave += (s, e) => btnSubmit.BackColor = Color.FromArgb(244, 63, 94);
+        }
+
+        // رسم الخلفية الفنية المدمجة ثلاثية الأبعاد (3D Cinematic Gradient Wallpaper)
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // دمج لون البنفسجي الساحر والوردي الليلي العميق بزاوية سينمائية مائلة 45 درجة
+            using (LinearGradientBrush bgBrush = new LinearGradientBrush(
+                this.ClientRectangle,
+                Color.FromArgb(46, 16, 56),    // درجة الماغنيسيوم الأرجواني الداكن
+                Color.FromArgb(15, 12, 30),    // درجة الكحلي المخملي العميق
+                45F))
+            {
+                e.Graphics.FillRectangle(bgBrush, this.ClientRectangle);
+            }
+
+            // رسم لمسة ديكور هندسية خلفية ناعمة لتعزيز مظهر الـ Premium UI
+            using (Pen decoPen = new Pen(Color.FromArgb(15, 255, 255, 255), 3))
+            {
+                e.Graphics.DrawEllipse(decoPen, -50, -50, 400, 400);
+                e.Graphics.DrawEllipse(decoPen, 200, 350, 300, 300);
+            }
+        }
+    }
+}

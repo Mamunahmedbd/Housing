@@ -1,0 +1,826 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Linq;
+using System.Windows.Forms;
+using System.IO;
+using System.Text.Json;
+
+namespace house_management
+{
+    public class House
+    {
+        public string ID { get; set; }
+        public string Name { get; set; }
+        public string Address { get; set; }
+        public string Status { get; set; }
+        public decimal Price { get; set; }
+        public int Bedrooms { get; set; }
+        public int Bathrooms { get; set; }
+        public double SquareFeet { get; set; }
+        public string OwnerName { get; set; }
+        public string OwnerPhone { get; set; }
+        public DateTime DateAdded { get; set; }
+        public string Description { get; set; }
+    }
+
+    public partial class Form1 : Form
+    {
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetProcessDPIAware();
+
+        [System.Runtime.InteropServices.DllImport("Gdi32.dll", EntryPoint = "CreateRoundRectRgn")]
+        private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
+
+        private List<House> houseList = new List<House>();
+        private string dataFilePath = "houses_data.json";
+        private Timer autoSaveTimer;
+        private bool isDataChanged = false;
+
+        // Login UI Elements
+        private Panel pnlGlassCard;
+        private Label lblWelcome;
+        private TextBox txtEmail;
+        private TextBox txtPassword;
+        private Button btnLogin;
+        private Button btnExit;
+        private Label lblForgotPass;
+        private CheckBox chkShowPassword;
+
+        // Sidebar and Header Elements
+        private Panel pnlSidebar;
+        private Panel pnlHeader;
+        private Label lblAppTitle;
+        private Button btnDashboard;
+        private Button btnHouses;
+        private Button btnLogout;
+        private Label lblWelcomeUser;
+        private Label lblDateTime;
+
+        // Main Content Elements
+        private Panel pnlMainContent;
+        private DataGridView dgvHouses;
+        private Button btnAddHouse;
+        private Button btnDeleteHouse;
+        private Button btnEditHouse;
+        private Label lblSectionTitle;
+        private TextBox txtSearch;
+        private ComboBox cmbStatusFilter;
+        private Label lblTotalRecords;
+
+        // Dashboard Cards
+        private Panel cardTotalHouses;
+        private Panel cardAvailableHouses;
+        private Panel cardRentedHouses;
+        private Panel cardMaintenanceHouses;
+        private Label lblTotalValue;
+        private Label lblAvailableValue;
+        private Label lblRentedValue;
+        private Label lblMaintenanceValue;
+
+        // Add House Dialog
+        private Panel pnlAddHouseDialog;
+        private TextBox txtNewName;
+        private TextBox txtNewAddress;
+        private TextBox txtNewPrice;
+        private TextBox txtNewBedrooms;
+        private TextBox txtNewBathrooms;
+        private TextBox txtNewSquareFeet;
+        private TextBox txtNewOwner;
+        private TextBox txtNewPhone;
+        private TextBox txtNewDescription;
+        private ComboBox cmbNewStatus;
+
+        // Edit House Dialog
+        private Panel pnlEditHouseDialog;
+        private TextBox txtEditName;
+        private TextBox txtEditAddress;
+        private TextBox txtEditPrice;
+        private TextBox txtEditBedrooms;
+        private TextBox txtEditBathrooms;
+        private TextBox txtEditSquareFeet;
+        private TextBox txtEditOwner;
+        private TextBox txtEditPhone;
+        private TextBox txtEditDescription;
+        private ComboBox cmbEditStatus;
+        private Label lblEditTitle;
+        private string editingHouseId;
+
+        // Colors
+        private Color cardColor = Color.FromArgb(26, 16, 36);
+        private Color inputBgColor = Color.FromArgb(42, 26, 54);
+        private Color buttonColor = Color.FromArgb(215, 45, 95);
+        private Color sidebarBg = Color.FromArgb(20, 12, 28);
+        private Color activeBtnColor = Color.FromArgb(215, 45, 95);
+        private Color deleteBtnColor = Color.FromArgb(190, 35, 65);
+        private Color deleteBtnHoverColor = Color.FromArgb(230, 45, 80);
+        private Color editBtnColor = Color.FromArgb(52, 152, 219);
+        private Color editBtnHoverColor = Color.FromArgb(72, 172, 239);
+        private Color successColor = Color.FromArgb(46, 204, 113);
+        private Color dangerColor = Color.FromArgb(231, 76, 60);
+        private Color warningColor = Color.FromArgb(241, 196, 15);
+
+        public Form1()
+        {
+            try { SetProcessDPIAware(); } catch { }
+
+            InitializeComponent();
+            SetupFormLayout();
+            LoadData();
+            InitializeDefaultData();
+            BuildLoginUI();
+            BuildDashboardUI();
+            BuildMainContentArea();
+            BuildDashboardCards();
+            BuildAddHouseDialog();
+            BuildEditHouseDialog();
+            InitializeAutoSave();
+
+            pnlGlassCard.Visible = true;
+            pnlSidebar.Visible = false;
+            pnlHeader.Visible = false;
+            pnlMainContent.Visible = false;
+        }
+
+        private void SetupFormLayout()
+        {
+            this.Size = new Size(1200, 750);
+            this.MinimumSize = new Size(1000, 600);
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor = Color.FromArgb(14, 12, 22);
+            this.DoubleBuffered = true;
+        }
+
+        private void InitializeDefaultData()
+        {
+            if (houseList.Count == 0)
+            {
+                houseList.Add(new House
+                {
+                    ID = "1",
+                    Name = "Green Villa",
+                    Address = "Downtown St 10",
+                    Status = "Available",
+                    Price = 2500,
+                    Bedrooms = 4,
+                    Bathrooms = 3,
+                    SquareFeet = 2800,
+                    OwnerName = "John Smith",
+                    OwnerPhone = "+1234567890",
+                    DateAdded = DateTime.Now.AddDays(-30),
+                    Description = "Luxury villa with garden and pool"
+                });
+
+                houseList.Add(new House
+                {
+                    ID = "2",
+                    Name = "Sunset Apartment",
+                    Address = "Beach Road Block 5",
+                    Status = "Rented",
+                    Price = 1800,
+                    Bedrooms = 2,
+                    Bathrooms = 2,
+                    SquareFeet = 1200,
+                    OwnerName = "Sarah Johnson",
+                    OwnerPhone = "+9876543210",
+                    DateAdded = DateTime.Now.AddDays(-15),
+                    Description = "Modern apartment with ocean view"
+                });
+
+                houseList.Add(new House
+                {
+                    ID = "3",
+                    Name = "Royal Palace",
+                    Address = "Al-Mansour District",
+                    Status = "Available",
+                    Price = 5000,
+                    Bedrooms = 6,
+                    Bathrooms = 5,
+                    SquareFeet = 4500,
+                    OwnerName = "Ahmed Al-Rashid",
+                    OwnerPhone = "+5555555555",
+                    DateAdded = DateTime.Now.AddDays(-5),
+                    Description = "Luxury palace with all amenities"
+                });
+
+                houseList.Add(new House
+                {
+                    ID = "4",
+                    Name = "Cozy Cottage",
+                    Address = "Forest Lane 321",
+                    Status = "Under Maintenance",
+                    Price = 1200,
+                    Bedrooms = 2,
+                    Bathrooms = 1,
+                    SquareFeet = 800,
+                    OwnerName = "Emily Davis",
+                    OwnerPhone = "+4444444444",
+                    DateAdded = DateTime.Now.AddDays(-45),
+                    Description = "Charming cottage in peaceful neighborhood"
+                });
+
+                SaveData();
+            }
+        }
+
+        private void LoadData()
+        {
+            try
+            {
+                if (File.Exists(dataFilePath))
+                {
+                    string json = File.ReadAllText(dataFilePath);
+                    houseList = JsonSerializer.Deserialize<List<House>>(json) ?? new List<House>();
+                }
+            }
+            catch
+            {
+                houseList = new List<House>();
+            }
+        }
+
+        private void SaveData()
+        {
+            try
+            {
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(houseList, options);
+                File.WriteAllText(dataFilePath, json);
+                isDataChanged = false;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error saving data: {ex.Message}", "Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void InitializeAutoSave()
+        {
+            autoSaveTimer = new Timer();
+            autoSaveTimer.Interval = 300000; // 5 minutes
+            autoSaveTimer.Tick += (s, e) => { if (isDataChanged) SaveData(); };
+            autoSaveTimer.Start();
+        }
+
+        private void BuildLoginUI()
+        {
+            btnExit = new Button();
+            btnExit.Text = "✕";
+            btnExit.Font = new Font("Segoe UI", 14, FontStyle.Bold);
+            btnExit.ForeColor = Color.FromArgb(220, 220, 220);
+            btnExit.BackColor = Color.Transparent;
+            btnExit.FlatStyle = FlatStyle.Flat;
+            btnExit.FlatAppearance.BorderSize = 0;
+            btnExit.Size = new Size(40, 40);
+            btnExit.Location = new Point(this.Width - 50, 10);
+            btnExit.Cursor = Cursors.Hand;
+            btnExit.Click += (s, e) => Application.Exit();
+            this.Controls.Add(btnExit);
+
+            pnlGlassCard = new Panel();
+            pnlGlassCard.Size = new Size(450, 580);
+            pnlGlassCard.Location = new Point((this.Width - pnlGlassCard.Width) / 2, (this.Height - pnlGlassCard.Height) / 2);
+            pnlGlassCard.BackColor = cardColor;
+            this.Controls.Add(pnlGlassCard);
+            ApplyRoundedCorners(pnlGlassCard, 26);
+
+            lblWelcome = new Label();
+            lblWelcome.Text = "Welcome Back";
+            lblWelcome.Font = new Font("Segoe UI", 28, FontStyle.Bold);
+            lblWelcome.ForeColor = Color.White;
+            lblWelcome.Size = new Size(350, 60);
+            lblWelcome.Location = new Point(50, 35);
+            lblWelcome.TextAlign = ContentAlignment.MiddleCenter;
+            pnlGlassCard.Controls.Add(lblWelcome);
+
+            Label lblSubtitle = new Label();
+            lblSubtitle.Text = "Sign in to your account";
+            lblSubtitle.Font = new Font("Segoe UI", 11, FontStyle.Regular);
+            lblSubtitle.ForeColor = Color.FromArgb(180, 180, 200);
+            lblSubtitle.Size = new Size(350, 30);
+            lblSubtitle.Location = new Point(50, 95);
+            lblSubtitle.TextAlign = ContentAlignment.MiddleCenter;
+            pnlGlassCard.Controls.Add(lblSubtitle);
+
+            txtEmail = new TextBox();
+            txtEmail.Font = new Font("Segoe UI", 12, FontStyle.Regular);
+            txtEmail.BackColor = inputBgColor;
+            txtEmail.ForeColor = Color.DarkGray;
+            txtEmail.BorderStyle = BorderStyle.FixedSingle;
+            txtEmail.Size = new Size(350, 40);
+            txtEmail.Location = new Point(50, 170);
+            txtEmail.Text = "Username";
+            pnlGlassCard.Controls.Add(txtEmail);
+
+            txtEmail.Enter += (s, e) => {
+                if (txtEmail.Text == "Username")
+                {
+                    txtEmail.Text = "";
+                    txtEmail.ForeColor = Color.White;
+                }
+            };
+            txtEmail.Leave += (s, e) => {
+                if (string.IsNullOrWhiteSpace(txtEmail.Text))
+                {
+                    txtEmail.Text = "Username";
+                    txtEmail.ForeColor = Color.DarkGray;
+                }
+            };
+
+            txtPassword = new TextBox();
+            txtPassword.Font = new Font("Segoe UI", 12, FontStyle.Regular);
+            txtPassword.BackColor = inputBgColor;
+            txtPassword.ForeColor = Color.DarkGray;
+            txtPassword.BorderStyle = BorderStyle.FixedSingle;
+            txtPassword.Size = new Size(350, 40);
+            txtPassword.Location = new Point(50, 235);
+            txtPassword.Text = "Password";
+            pnlGlassCard.Controls.Add(txtPassword);
+
+            txtPassword.Enter += (s, e) => {
+                if (txtPassword.Text == "Password")
+                {
+                    txtPassword.Text = "";
+                    txtPassword.ForeColor = Color.White;
+                    txtPassword.PasswordChar = '●';
+                }
+            };
+            txtPassword.Leave += (s, e) => {
+                if (string.IsNullOrWhiteSpace(txtPassword.Text))
+                {
+                    txtPassword.Text = "Password";
+                    txtPassword.ForeColor = Color.DarkGray;
+                    txtPassword.PasswordChar = '\0';
+                }
+            };
+
+            chkShowPassword = new CheckBox();
+            chkShowPassword.Text = "Show Password";
+            chkShowPassword.Font = new Font("Segoe UI", 9, FontStyle.Regular);
+            chkShowPassword.ForeColor = Color.FromArgb(180, 180, 200);
+            chkShowPassword.BackColor = Color.Transparent;
+            chkShowPassword.Size = new Size(130, 25);
+            chkShowPassword.Location = new Point(50, 285);
+            chkShowPassword.CheckedChanged += (s, e) => {
+                txtPassword.PasswordChar = chkShowPassword.Checked ? '\0' : '●';
+            };
+            pnlGlassCard.Controls.Add(chkShowPassword);
+
+            btnLogin = new Button();
+            btnLogin.Text = "LOGIN";
+            btnLogin.Font = new Font("Segoe UI", 14, FontStyle.Bold);
+            btnLogin.ForeColor = Color.White;
+            btnLogin.BackColor = buttonColor;
+            btnLogin.FlatStyle = FlatStyle.Flat;
+            btnLogin.FlatAppearance.BorderSize = 0;
+            btnLogin.Size = new Size(350, 50);
+            btnLogin.Location = new Point(50, 325);
+            btnLogin.Cursor = Cursors.Hand;
+            pnlGlassCard.Controls.Add(btnLogin);
+            ApplyRoundedCorners(btnLogin, 16);
+
+            btnLogin.Click += (s, e) => {
+                if (txtEmail.Text.Trim() == "admin" && txtPassword.Text == "1234")
+                {
+                    pnlGlassCard.Visible = false;
+                    pnlSidebar.Visible = true;
+                    pnlHeader.Visible = true;
+                    pnlMainContent.Visible = true;
+                    ShowDashboardData();
+                    lblWelcomeUser.Text = "Welcome Back, Admin";
+                }
+                else
+                {
+                    MessageBox.Show("Invalid username or password!", "Login Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            lblForgotPass = new Label();
+            lblForgotPass.Text = "Forgot Password?";
+            lblForgotPass.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            lblForgotPass.ForeColor = Color.FromArgb(215, 45, 95);
+            lblForgotPass.Size = new Size(150, 25);
+            lblForgotPass.Location = new Point(50, 395);
+            lblForgotPass.Cursor = Cursors.Hand;
+            lblForgotPass.Click += (s, e) => {
+                MessageBox.Show("Please contact system administrator to reset your password.", "Forgot Password", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+            pnlGlassCard.Controls.Add(lblForgotPass);
+
+            Label lblRegister = new Label();
+            lblRegister.Text = "Don't have an account? Register";
+            lblRegister.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            lblRegister.ForeColor = Color.FromArgb(180, 180, 200);
+            lblRegister.Size = new Size(220, 25);
+            lblRegister.Location = new Point(200, 395);
+            lblRegister.Cursor = Cursors.Hand;
+            lblRegister.Click += (s, e) => {
+                MessageBox.Show("Registration feature coming soon!", "Register", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+            pnlGlassCard.Controls.Add(lblRegister);
+
+            Label lblVersion = new Label();
+            lblVersion.Text = "Version 2.0";
+            lblVersion.Font = new Font("Segoe UI", 8, FontStyle.Regular);
+            lblVersion.ForeColor = Color.FromArgb(180, 180, 200);
+            lblVersion.Size = new Size(100, 20);
+            lblVersion.Location = new Point(50, 440);
+            pnlGlassCard.Controls.Add(lblVersion);
+        }
+
+        private void BuildDashboardUI()
+        {
+            pnlSidebar = new Panel();
+            pnlSidebar.Size = new Size(240, this.Height);
+            pnlSidebar.Location = new Point(0, 0);
+            pnlSidebar.BackColor = sidebarBg;
+            this.Controls.Add(pnlSidebar);
+
+            lblAppTitle = new Label();
+            lblAppTitle.Text = "🏠 Housing App";
+            lblAppTitle.Font = new Font("Segoe UI", 16, FontStyle.Bold);
+            lblAppTitle.ForeColor = Color.White;
+            lblAppTitle.Location = new Point(15, 25);
+            lblAppTitle.Size = new Size(210, 45);
+            pnlSidebar.Controls.Add(lblAppTitle);
+
+            btnDashboard = CreateSidebarButton("Dashboard", 120);
+            btnHouses = CreateSidebarButton("Manage Houses", 180);
+            pnlSidebar.Controls.Add(btnDashboard);
+            pnlSidebar.Controls.Add(btnHouses);
+
+            btnDashboard.Click += (s, e) => ShowDashboardData();
+            btnHouses.Click += (s, e) => ShowHousesGrid();
+
+            btnLogout = CreateSidebarButton("Logout", this.Height - 70);
+            btnLogout.BackColor = Color.FromArgb(105, 30, 75);
+            btnLogout.Click += (s, e) => {
+                pnlSidebar.Visible = false;
+                pnlHeader.Visible = false;
+                pnlMainContent.Visible = false;
+                pnlGlassCard.Visible = true;
+                txtEmail.Text = "Username";
+                txtEmail.ForeColor = Color.DarkGray;
+                txtPassword.Text = "Password";
+                txtPassword.ForeColor = Color.DarkGray;
+                txtPassword.PasswordChar = '\0';
+                chkShowPassword.Checked = false;
+            };
+            pnlSidebar.Controls.Add(btnLogout);
+
+            pnlHeader = new Panel();
+            pnlHeader.Size = new Size(this.Width - 240, 80);
+            pnlHeader.Location = new Point(240, 0);
+            pnlHeader.BackColor = Color.FromArgb(26, 16, 36);
+            this.Controls.Add(pnlHeader);
+
+            lblWelcomeUser = new Label();
+            lblWelcomeUser.Text = "Welcome Back, Admin";
+            lblWelcomeUser.Font = new Font("Segoe UI", 14, FontStyle.Bold);
+            lblWelcomeUser.ForeColor = Color.White;
+            lblWelcomeUser.Location = new Point(25, 25);
+            lblWelcomeUser.Size = new Size(300, 30);
+            pnlHeader.Controls.Add(lblWelcomeUser);
+
+            lblDateTime = new Label();
+            lblDateTime.Font = new Font("Segoe UI", 10, FontStyle.Regular);
+            lblDateTime.ForeColor = Color.FromArgb(180, 180, 200);
+            lblDateTime.Location = new Point(this.Width - 240 - 220, 25);
+            lblDateTime.Size = new Size(200, 30);
+            lblDateTime.TextAlign = ContentAlignment.MiddleRight;
+            pnlHeader.Controls.Add(lblDateTime);
+
+            Timer clockTimer = new Timer();
+            clockTimer.Interval = 1000;
+            clockTimer.Tick += (s, e) => {
+                lblDateTime.Text = DateTime.Now.ToString("dddd, MMMM dd, yyyy HH:mm:ss");
+            };
+            clockTimer.Start();
+        }
+
+        private Button CreateSidebarButton(string text, int topLocation)
+        {
+            Button btn = new Button();
+            btn.Text = text;
+            btn.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            btn.ForeColor = Color.White;
+            btn.Size = new Size(200, 45);
+            btn.Location = new Point(20, topLocation);
+            btn.FlatStyle = FlatStyle.Flat;
+            btn.FlatAppearance.BorderSize = 0;
+            btn.Cursor = Cursors.Hand;
+            btn.TextAlign = ContentAlignment.MiddleLeft;
+            btn.Padding = new Padding(15, 0, 0, 0);
+
+            btn.MouseEnter += (s, e) => {
+                if (btn.BackColor != activeBtnColor)
+                    btn.BackColor = Color.FromArgb(45, 30, 60);
+            };
+            btn.MouseLeave += (s, e) => {
+                if (btn.BackColor != activeBtnColor)
+                    btn.BackColor = Color.Transparent;
+            };
+
+            return btn;
+        }
+
+        private void BuildMainContentArea()
+        {
+            pnlMainContent = new Panel();
+            pnlMainContent.Size = new Size(960, 670);
+            pnlMainContent.Location = new Point(240, 80);
+            pnlMainContent.BackColor = Color.Transparent;
+            pnlMainContent.AutoScroll = true;
+            this.Controls.Add(pnlMainContent);
+
+            lblSectionTitle = new Label();
+            lblSectionTitle.Font = new Font("Segoe UI", 18, FontStyle.Bold);
+            lblSectionTitle.ForeColor = Color.White;
+            lblSectionTitle.Location = new Point(25, 20);
+            lblSectionTitle.Size = new Size(300, 40);
+            pnlMainContent.Controls.Add(lblSectionTitle);
+
+            txtSearch = new TextBox();
+            txtSearch.Text = " 🔍 Search...";
+            txtSearch.Font = new Font("Segoe UI", 11, FontStyle.Italic);
+            txtSearch.BackColor = inputBgColor;
+            txtSearch.ForeColor = Color.DarkGray;
+            txtSearch.BorderStyle = BorderStyle.FixedSingle;
+            txtSearch.Size = new Size(220, 40);
+            txtSearch.Location = new Point(250, 20);
+            txtSearch.Visible = false;
+
+            txtSearch.TextChanged += (s, e) => {
+                if (txtSearch.Text != " 🔍 Search...")
+                {
+                    FilterHouses(txtSearch.Text.Trim().Replace("🔍 Search...", ""));
+                }
+            };
+            txtSearch.Enter += (s, e) => {
+                if (txtSearch.Text.Contains("Search..."))
+                {
+                    txtSearch.Text = "";
+                    txtSearch.ForeColor = Color.White;
+                    txtSearch.Font = new Font("Segoe UI", 11, FontStyle.Regular);
+                }
+            };
+            txtSearch.Leave += (s, e) => {
+                if (string.IsNullOrWhiteSpace(txtSearch.Text))
+                {
+                    txtSearch.Text = " 🔍 Search...";
+                    txtSearch.ForeColor = Color.DarkGray;
+                    txtSearch.Font = new Font("Segoe UI", 11, FontStyle.Italic);
+                    ShowHousesGrid();
+                }
+            };
+            pnlMainContent.Controls.Add(txtSearch);
+
+            cmbStatusFilter = new ComboBox();
+            cmbStatusFilter.Font = new Font("Segoe UI", 11, FontStyle.Regular);
+            cmbStatusFilter.BackColor = inputBgColor;
+            cmbStatusFilter.ForeColor = Color.White;
+            cmbStatusFilter.FlatStyle = FlatStyle.Flat;
+            cmbStatusFilter.Size = new Size(150, 40);
+            cmbStatusFilter.Location = new Point(490, 20);
+            cmbStatusFilter.Items.AddRange(new object[] { "All Status", "Available", "Rented", "Under Maintenance" });
+            cmbStatusFilter.SelectedIndex = 0;
+            cmbStatusFilter.Visible = false;
+            cmbStatusFilter.SelectedIndexChanged += (s, e) => {
+                if (cmbStatusFilter.SelectedIndex > 0)
+                {
+                    FilterByStatus(cmbStatusFilter.SelectedItem.ToString());
+                }
+                else
+                {
+                    ShowHousesGrid();
+                }
+            };
+            pnlMainContent.Controls.Add(cmbStatusFilter);
+
+            btnEditHouse = new Button();
+            btnEditHouse.Text = "✏️ Edit";
+            btnEditHouse.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            btnEditHouse.ForeColor = Color.White;
+            btnEditHouse.BackColor = editBtnColor;
+            btnEditHouse.FlatStyle = FlatStyle.Flat;
+            btnEditHouse.FlatAppearance.BorderSize = 0;
+            btnEditHouse.Size = new Size(100, 40);
+            btnEditHouse.Location = new Point(670, 20);
+            btnEditHouse.Cursor = Cursors.Hand;
+            btnEditHouse.Visible = false;
+            btnEditHouse.MouseEnter += (s, e) => btnEditHouse.BackColor = editBtnHoverColor;
+            btnEditHouse.MouseLeave += (s, e) => btnEditHouse.BackColor = editBtnColor;
+            btnEditHouse.Click += (s, e) => HandleEditHouse();
+            pnlMainContent.Controls.Add(btnEditHouse);
+
+            btnDeleteHouse = new Button();
+            btnDeleteHouse.Text = "🗑 Delete";
+            btnDeleteHouse.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            btnDeleteHouse.ForeColor = Color.White;
+            btnDeleteHouse.BackColor = deleteBtnColor;
+            btnDeleteHouse.FlatStyle = FlatStyle.Flat;
+            btnDeleteHouse.FlatAppearance.BorderSize = 0;
+            btnDeleteHouse.Size = new Size(100, 40);
+            btnDeleteHouse.Location = new Point(790, 20);
+            btnDeleteHouse.Cursor = Cursors.Hand;
+            btnDeleteHouse.Visible = false;
+            btnDeleteHouse.MouseEnter += (s, e) => btnDeleteHouse.BackColor = deleteBtnHoverColor;
+            btnDeleteHouse.MouseLeave += (s, e) => btnDeleteHouse.BackColor = deleteBtnColor;
+            btnDeleteHouse.Click += (s, e) => HandleDeleteHouse();
+            pnlMainContent.Controls.Add(btnDeleteHouse);
+
+            btnAddHouse = new Button();
+            btnAddHouse.Text = "+ Add New";
+            btnAddHouse.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            btnAddHouse.ForeColor = Color.White;
+            btnAddHouse.BackColor = buttonColor;
+            btnAddHouse.FlatStyle = FlatStyle.Flat;
+            btnAddHouse.FlatAppearance.BorderSize = 0;
+            btnAddHouse.Size = new Size(130, 40);
+            btnAddHouse.Location = new Point(910, 20);
+            btnAddHouse.Cursor = Cursors.Hand;
+            btnAddHouse.Click += (s, e) => { pnlAddHouseDialog.Visible = true; pnlAddHouseDialog.BringToFront(); };
+            pnlMainContent.Controls.Add(btnAddHouse);
+
+            dgvHouses = new DataGridView();
+            dgvHouses.Size = new Size(900, 480);
+            dgvHouses.Location = new Point(25, 80);
+            dgvHouses.BorderStyle = BorderStyle.FixedSingle;
+            dgvHouses.CellBorderStyle = DataGridViewCellBorderStyle.Single;
+            dgvHouses.GridColor = Color.FromArgb(90, 70, 110);
+            dgvHouses.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvHouses.MultiSelect = false;
+            dgvHouses.AllowUserToAddRows = false;
+            dgvHouses.RowHeadersVisible = false;
+            dgvHouses.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvHouses.EnableHeadersVisualStyles = false;
+            dgvHouses.BackgroundColor = Color.FromArgb(26, 16, 36);
+            dgvHouses.ReadOnly = true;
+
+            dgvHouses.SelectionChanged += (s, e) => {
+                bool hasSelection = dgvHouses.SelectedRows.Count > 0;
+                btnDeleteHouse.Visible = hasSelection;
+                btnEditHouse.Visible = hasSelection;
+            };
+
+            DataGridViewCellStyle headerStyle = new DataGridViewCellStyle();
+            headerStyle.BackColor = Color.FromArgb(45, 30, 60);
+            headerStyle.ForeColor = Color.FromArgb(255, 60, 130);
+            headerStyle.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+            headerStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dgvHouses.ColumnHeadersDefaultCellStyle = headerStyle;
+            dgvHouses.ColumnHeadersHeight = 50;
+
+            DataGridViewCellStyle rowStyle = new DataGridViewCellStyle();
+            rowStyle.BackColor = Color.FromArgb(32, 22, 44);
+            rowStyle.ForeColor = Color.White;
+            rowStyle.Font = new Font("Segoe UI", 11, FontStyle.Regular);
+            rowStyle.SelectionBackColor = Color.FromArgb(215, 45, 95);
+            rowStyle.SelectionForeColor = Color.White;
+            rowStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            dgvHouses.RowsDefaultCellStyle = rowStyle;
+            dgvHouses.RowTemplate.Height = 45;
+
+            pnlMainContent.Controls.Add(dgvHouses);
+
+            pnlStatusBar = new Panel();
+            pnlStatusBar.Size = new Size(900, 30);
+            pnlStatusBar.Location = new Point(25, 570);
+            pnlStatusBar.BackColor = Color.FromArgb(20, 12, 28);
+            pnlMainContent.Controls.Add(pnlStatusBar);
+
+            lblTotalRecords = new Label();
+            lblTotalRecords.Font = new Font("Segoe UI", 10, FontStyle.Regular);
+            lblTotalRecords.ForeColor = Color.FromArgb(180, 180, 200);
+            lblTotalRecords.Location = new Point(10, 5);
+            lblTotalRecords.Size = new Size(300, 20);
+            pnlStatusBar.Controls.Add(lblTotalRecords);
+
+            dgvHouses.Columns.Add("ID", "ID");
+            dgvHouses.Columns.Add("Name", "House Name");
+            dgvHouses.Columns.Add("Address", "Address");
+            dgvHouses.Columns.Add("Status", "Status");
+            dgvHouses.Columns.Add("Price", "Price ($)");
+            dgvHouses.Columns.Add("Bedrooms", "Beds");
+            dgvHouses.Columns.Add("Bathrooms", "Baths");
+            dgvHouses.Columns.Add("SqFt", "Sq Ft");
+            dgvHouses.Columns.Add("Owner", "Owner");
+
+            dgvHouses.Columns["Price"].DefaultCellStyle.Format = "N0";
+            dgvHouses.Columns["Price"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
+            ApplyRoundedCorners(txtSearch, 10);
+            ApplyRoundedCorners(btnAddHouse, 10);
+            ApplyRoundedCorners(btnDeleteHouse, 10);
+            ApplyRoundedCorners(btnEditHouse, 10);
+            ApplyRoundedCorners(cmbStatusFilter, 10);
+        }
+
+        private void BuildDashboardCards()
+        {
+            int cardWidth = 210;
+            int cardHeight = 150;
+            int topPos = 90;
+            int spacing = 20;
+
+            cardTotalHouses = CreateStatCard("🏠 Total Houses", Color.FromArgb(45, 30, 60), 25, topPos, cardWidth, cardHeight, out lblTotalValue);
+            cardAvailableHouses = CreateStatCard("✅ Available", Color.FromArgb(25, 50, 45), 25 + cardWidth + spacing, topPos, cardWidth, cardHeight, out lblAvailableValue);
+            cardRentedHouses = CreateStatCard("🔴 Rented", Color.FromArgb(65, 25, 45), 25 + 2 * (cardWidth + spacing), topPos, cardWidth, cardHeight, out lblRentedValue);
+            cardMaintenanceHouses = CreateStatCard("🔧 Maintenance", Color.FromArgb(65, 50, 25), 25 + 3 * (cardWidth + spacing), topPos, cardWidth, cardHeight, out lblMaintenanceValue);
+
+            pnlMainContent.Controls.Add(cardTotalHouses);
+            pnlMainContent.Controls.Add(cardAvailableHouses);
+            pnlMainContent.Controls.Add(cardRentedHouses);
+            pnlMainContent.Controls.Add(cardMaintenanceHouses);
+        }
+
+        private Panel CreateStatCard(string title, Color bgColor, int x, int y, int w, int h, out Label valueLabel)
+        {
+            Panel card = new Panel();
+            card.Size = new Size(w, h);
+            card.Location = new Point(x, y);
+            card.BackColor = bgColor;
+            ApplyRoundedCorners(card, 18);
+
+            Label lblTitle = new Label();
+            lblTitle.Text = title;
+            lblTitle.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+            lblTitle.ForeColor = Color.FromArgb(220, 220, 220);
+            lblTitle.Location = new Point(15, 20);
+            lblTitle.Size = new Size(180, 30);
+            card.Controls.Add(lblTitle);
+
+            valueLabel = new Label();
+            valueLabel.Text = "0";
+            valueLabel.Font = new Font("Segoe UI", 28, FontStyle.Bold);
+            valueLabel.ForeColor = Color.White;
+            valueLabel.Location = new Point(15, 60);
+            valueLabel.Size = new Size(180, 55);
+            card.Controls.Add(valueLabel);
+
+            return card;
+        }
+
+        private void BuildAddHouseDialog()
+        {
+            pnlAddHouseDialog = new Panel();
+            pnlAddHouseDialog.Size = new Size(500, 480);
+            pnlAddHouseDialog.Location = new Point((960 - 500) / 2, (670 - 480) / 2);
+            pnlAddHouseDialog.BackColor = Color.FromArgb(35, 22, 48);
+            pnlAddHouseDialog.BorderStyle = BorderStyle.FixedSingle;
+            pnlAddHouseDialog.Visible = false;
+            pnlMainContent.Controls.Add(pnlAddHouseDialog);
+            ApplyRoundedCorners(pnlAddHouseDialog, 15);
+
+            Label lblTitle = new Label
+            {
+                Text = "Add New House",
+                Font = new Font("Segoe UI", 16, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(20, 15),
+                Size = new Size(200, 35)
+            };
+            pnlAddHouseDialog.Controls.Add(lblTitle);
+
+            int yPos = 70;
+            int spacing = 50;
+
+            txtNewName = CreateDialogTextBox("House Name", 20, yPos);
+            pnlAddHouseDialog.Controls.Add(txtNewName);
+
+            txtNewAddress = CreateDialogTextBox("Address", 20, yPos + spacing);
+            pnlAddHouseDialog.Controls.Add(txtNewAddress);
+
+            txtNewPrice = CreateDialogTextBox("Price ($)", 20, yPos + 2 * spacing);
+            pnlAddHouseDialog.Controls.Add(txtNewPrice);
+
+            txtNewBedrooms = CreateDialogTextBox("Bedrooms", 280, yPos);
+            pnlAddHouseDialog.Controls.Add(txtNewBedrooms);
+
+            txtNewBathrooms = CreateDialogTextBox("Bathrooms", 280, yPos + spacing);
+            pnlAddHouseDialog.Controls.Add(txtNewBathrooms);
+
+            txtNewSquareFeet = CreateDialogTextBox("Square Feet", 280, yPos + 2 * spacing);
+            pnlAddHouseDialog.Controls.Add(txtNewSquareFeet);
+
+            txtNewOwner = CreateDialogTextBox("Owner Name", 20, yPos + 3 * spacing);
+            pnlAddHouseDialog.Controls.Add(txtNewOwner);
+
+            txtNewPhone = CreateDialogTextBox("Owner Phone", 280, yPos + 3 * spacing);
+            pnlAddHouseDialog.Controls.Add(txtNewPhone);
+
+            txtNewDescription = CreateDialogTextBox("Description", 20, yPos + 4 * spacing, 460);
+            pnlAddHouseDialog.Controls.Add(txtNewDescription);
+
+            cmbNewStatus = new ComboBox
+            {
+                BackColor = inputBgColor,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 11, FontStyle.Regular),
+                Location = new Point(280, yPos + 4 * spacing + 55),
+                Size = new Size(200, 35),
+                FlatStyle = FlatStyle.Flat
+            };
+            cmbNewStatus.Items.AddRange(new string[]
