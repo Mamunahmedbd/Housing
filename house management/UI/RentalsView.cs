@@ -21,8 +21,8 @@ namespace house_management
         private ComboBox cmbRentalHouse;
         private ComboBox cmbRentalTenant;
         private TextBox txtRentalAmount;
-        private TextBox txtRentalStart;
-        private TextBox txtRentalEnd;
+        private DateTimePicker dtpRentalStart;
+        private DateTimePicker dtpRentalEnd;
         private Button btnRentalSave;
         private Button btnRentalCancel;
 
@@ -201,25 +201,25 @@ namespace house_management
             pnlRentalDialog.Controls.Add(lblRentalDialogTitle);
 
             Label lblHouse = new Label { Text = "House", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(200, 190, 210), Location = new Point(20, 60), Size = new Size(160, 18) };
-            cmbRentalHouse = new ComboBox { BackColor = inputBgColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11), Location = new Point(20, 80), Size = new Size(160, 35), FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
+            Panel pnlHouseCombo = CreateModernComboBox(20, 80, 160, 45, "🏠", out cmbRentalHouse);
             pnlRentalDialog.Controls.Add(lblHouse);
-            pnlRentalDialog.Controls.Add(cmbRentalHouse);
+            pnlRentalDialog.Controls.Add(pnlHouseCombo);
 
             Label lblTenant = new Label { Text = "Tenant", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(200, 190, 210), Location = new Point(200, 60), Size = new Size(160, 18) };
-            cmbRentalTenant = new ComboBox { BackColor = inputBgColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11), Location = new Point(200, 80), Size = new Size(160, 35), FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
+            Panel pnlTenantCombo = CreateModernComboBox(200, 80, 160, 45, "👤", out cmbRentalTenant);
             pnlRentalDialog.Controls.Add(lblTenant);
-            pnlRentalDialog.Controls.Add(cmbRentalTenant);
+            pnlRentalDialog.Controls.Add(pnlTenantCombo);
 
             Panel pnlRentContainer = CreateModernTextBox("Rent Amount (e.g. 1200)", 20, 135, 340, 45, "💵", false, out txtRentalAmount);
             pnlRentalDialog.Controls.Add(pnlRentContainer);
 
             Label lblStart = new Label { Text = "Start Date", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(200, 190, 210), Location = new Point(20, 195), Size = new Size(160, 18) };
-            Panel pnlStartContainer = CreateModernTextBox("YYYY-MM-DD", 20, 215, 160, 45, "📅", false, out txtRentalStart);
+            Panel pnlStartContainer = CreateModernDateTimePicker(20, 215, 160, 45, "📅", out dtpRentalStart);
             pnlRentalDialog.Controls.Add(lblStart);
             pnlRentalDialog.Controls.Add(pnlStartContainer);
 
             Label lblEnd = new Label { Text = "End Date", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(200, 190, 210), Location = new Point(200, 195), Size = new Size(160, 18) };
-            Panel pnlEndContainer = CreateModernTextBox("YYYY-MM-DD", 200, 215, 160, 45, "📅", false, out txtRentalEnd);
+            Panel pnlEndContainer = CreateModernDateTimePicker(200, 215, 160, 45, "📅", out dtpRentalEnd);
             pnlRentalDialog.Controls.Add(lblEnd);
             pnlRentalDialog.Controls.Add(pnlEndContainer);
 
@@ -293,12 +293,12 @@ namespace house_management
         {
             // Populate House dropdown (only available properties)
             cmbRentalHouse.Items.Clear();
-            var houses = DatabaseHelper.GetHouses();
+            var houses = Services.HouseService.GetAll();
             foreach (var h in houses)
             {
-                if (h.Status == "Available")
+                if (h.Status == Models.HouseStatus.Available)
                 {
-                    cmbRentalHouse.Items.Add(new RentalComboItem { ID = h.ID, Name = h.Name });
+                    cmbRentalHouse.Items.Add(new RentalComboItem { ID = h.Id.ToString(), Name = h.Name });
                 }
             }
             if (cmbRentalHouse.Items.Count > 0) cmbRentalHouse.SelectedIndex = 0;
@@ -313,8 +313,8 @@ namespace house_management
             if (cmbRentalTenant.Items.Count > 0) cmbRentalTenant.SelectedIndex = 0;
 
             txtRentalAmount.Text = "";
-            txtRentalStart.Text = DateTime.Now.ToString("yyyy-MM-dd");
-            txtRentalEnd.Text = DateTime.Now.AddYears(1).ToString("yyyy-MM-dd");
+            dtpRentalStart.Value = DateTime.Now;
+            dtpRentalEnd.Value = DateTime.Now.AddYears(1);
 
             pnlRentalDialog.Visible = true;
             pnlRentalDialog.BringToFront();
@@ -333,8 +333,6 @@ namespace house_management
             string houseId = ((RentalComboItem)cmbRentalHouse.SelectedItem).ID;
             string tenantId = ((RentalComboItem)cmbRentalTenant.SelectedItem).ID;
             string amountStr = txtRentalAmount.Text.Trim();
-            string startStr = txtRentalStart.Text.Trim();
-            string endStr = txtRentalEnd.Text.Trim();
 
             if (!decimal.TryParse(amountStr, out decimal amount) || amount <= 0)
             {
@@ -342,7 +340,9 @@ namespace house_management
                 return;
             }
 
-            if (!DateTime.TryParse(startStr, out DateTime start) || !DateTime.TryParse(endStr, out DateTime end) || start >= end)
+            DateTime start = dtpRentalStart.Value.Date;
+            DateTime end = dtpRentalEnd.Value.Date;
+            if (start >= end)
             {
                 MessageBox.Show("Please enter valid start and end dates. Start date must be before end date.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;

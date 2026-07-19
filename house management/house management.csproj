@@ -71,9 +71,12 @@
     <Compile Include="Models\UserStatus.cs" />
     <Compile Include="Models\UserSession.cs" />
     <Compile Include="Models\Tenant.cs" />
+    <Compile Include="Models\House.cs" />
+    <Compile Include="Models\HouseStatus.cs" />
     <Compile Include="Services\PasswordHasher.cs" />
     <Compile Include="Services\UserService.cs" />
     <Compile Include="Services\TenantService.cs" />
+    <Compile Include="Services\HouseService.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">

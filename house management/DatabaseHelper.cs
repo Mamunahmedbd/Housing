@@ -253,95 +253,11 @@ namespace house_management
             return result.Success;
         }
 
-        /// <summary>
-        /// Fetches the list of houses, with an optional search term filtering by Name or Address.
-        /// </summary>
-        public static List<House> GetHouses(string searchKeyword = "")
-        {
-            List<House> list = new List<House>();
-
-            ExecuteDbCommand(cmd =>
-            {
-                cmd.CommandText = "sp_GetHouses";
-                cmd.CommandType = CommandType.StoredProcedure;
-
-                string keyword = string.IsNullOrWhiteSpace(searchKeyword) ? null : searchKeyword.Trim();
-                cmd.Parameters.Add(new SqlParameter("@searchKeyword", SqlDbType.NVarChar, 100)
-                {
-                    Value = (object)keyword ?? DBNull.Value
-                });
-
-                using (SqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        list.Add(new House
-                        {
-                            ID = reader["id"].ToString(),
-                            Name = reader["name"].ToString(),
-                            Address = reader["address"].ToString(),
-                            Status = reader["status"].ToString()
-                        });
-                    }
-                }
-            });
-
-            return list;
-        }
-
-        /// <summary>
-        /// Inserts a new house record into the Houses database table.
-        /// </summary>
-        public static bool AddHouse(string name, string address, string status)
-        {
-            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(address))
-                return false;
-
-            int affected = 0;
-
-            ExecuteDbCommand(cmd =>
-            {
-                cmd.CommandText = "sp_AddHouse";
-                cmd.CommandType = CommandType.StoredProcedure;
-
-                cmd.Parameters.AddWithValue("@name", name.Trim());
-                cmd.Parameters.AddWithValue("@address", address.Trim());
-                cmd.Parameters.AddWithValue("@status", status);
-
-                affected = cmd.ExecuteNonQuery();
-            });
-
-            return affected > 0;
-        }
-
-        /// <summary>
-        /// Deletes a house record from the Houses database table by its ID.
-        /// </summary>
-        public static bool DeleteHouse(string id)
-        {
-            if (string.IsNullOrEmpty(id))
-                return false;
-
-            int affected = 0;
-
-            ExecuteDbCommand(cmd =>
-            {
-                cmd.CommandText = "sp_DeleteHouse";
-                cmd.CommandType = CommandType.StoredProcedure;
-
-                int parsedId;
-                if (!int.TryParse(id, out parsedId))
-                {
-                    affected = 0;
-                    return;
-                }
-
-                cmd.Parameters.AddWithValue("@id", parsedId);
-                affected = cmd.ExecuteNonQuery();
-            });
-
-            return affected > 0;
-        }
+        // ---------------------------------------------------------------------
+        // Houses are managed exclusively through Services.HouseService
+        // (validation, business rules and stored procedures). The legacy
+        // inline GetHouses/AddHouse/DeleteHouse methods have been removed.
+        // ---------------------------------------------------------------------
 
         // ---------------------------------------------------------------------
         // Stored procedure bootstrap.
@@ -374,6 +290,7 @@ namespace house_management
             {
                 ("[dbo].[sp_GetHouses]",            HousesGet),
                 ("[dbo].[sp_AddHouse]",             HousesAdd),
+                ("[dbo].[sp_UpdateHouse]",          HousesUpdate),
                 ("[dbo].[sp_DeleteHouse]",          HousesDelete),
                 ("[dbo].[sp_GetUsers]",             UsersGet),
                 ("[dbo].[sp_CreateUser]",           UsersCreate),
@@ -417,6 +334,23 @@ BEGIN
     SET NOCOUNT ON;
     INSERT INTO [dbo].[Houses] ([name], [address], [status])
     VALUES (@name, @address, @status);
+    SELECT CAST(SCOPE_IDENTITY() AS INT) AS [NewId];
+END;";
+
+            private const string HousesUpdate = @"
+CREATE PROCEDURE [dbo].[sp_UpdateHouse]
+    @id      INT,
+    @name    NVARCHAR(100),
+    @address NVARCHAR(255),
+    @status  NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE [dbo].[Houses]
+       SET [name]    = @name,
+           [address] = @address,
+           [status]  = @status
+     WHERE [id] = @id;
 END;";
 
             private const string HousesDelete = @"

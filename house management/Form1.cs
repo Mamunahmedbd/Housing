@@ -8,14 +8,6 @@ using System.Windows.Forms;
 
 namespace house_management
 {
-    public class House
-    {
-        public string ID { get; set; }
-        public string Name { get; set; }
-        public string Address { get; set; }
-        public string Status { get; set; }
-    }
-
     public partial class Form1 : Form
     {
         [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -87,6 +79,7 @@ namespace house_management
         private Panel pnlMainContent;
         private DataGridView dgvHouses;
         private Button btnAddHouse;
+        private Button btnEditHouse;
         private Button btnDeleteHouse;
         private Label lblSectionTitle;
         private TextBox txtSearch;
@@ -102,9 +95,14 @@ namespace house_management
 
         // لوحة إضافة منزل جديد 
         private Panel pnlAddHouseDialog;
+        private Label lblHouseDialogTitle;
         private TextBox txtNewName;
         private TextBox txtNewAddress;
         private ComboBox cmbNewStatus;
+        private Button btnSaveHouse;
+        private Button btnCancelHouse;
+        private int? editingHouseId;
+        private bool houseDialogIsEdit;
 
         // الألوان المعتمدة بالتصميم الفخم
         private Color cardColor = Color.FromArgb(26, 16, 36);
@@ -478,6 +476,25 @@ namespace house_management
             btnDeleteHouse.Click += (s, e) => HandleDeleteHouse();
             pnlMainContent.Controls.Add(btnDeleteHouse);
 
+            // زر تعديل منزل - يظهر فقط عند تحديد صف
+            btnEditHouse = new Button();
+            btnEditHouse.Text = "✎ Edit Selected";
+            btnEditHouse.Font = new Font("Segoe UI", 11, FontStyle.Bold);
+            btnEditHouse.ForeColor = Color.White;
+            btnEditHouse.BackColor = Color.FromArgb(70, 110, 90);
+            btnEditHouse.FlatStyle = FlatStyle.Flat;
+            btnEditHouse.FlatAppearance.BorderSize = 0;
+            btnEditHouse.Size = new Size(160, 40);
+            btnEditHouse.Location = new Point(660, 20);
+            btnEditHouse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnEditHouse.Cursor = Cursors.Hand;
+            btnEditHouse.Visible = false;
+
+            btnEditHouse.MouseEnter += (s, e) => btnEditHouse.BackColor = ControlPaint.Light(Color.FromArgb(70, 110, 90), 0.15f);
+            btnEditHouse.MouseLeave += (s, e) => btnEditHouse.BackColor = Color.FromArgb(70, 110, 90);
+            btnEditHouse.Click += (s, e) => HandleEditHouse();
+            pnlMainContent.Controls.Add(btnEditHouse);
+
             // زر إضافة منزل جديد - مستقر وثابت في أقصى اليمين بالتوازي التام
             btnAddHouse = new Button();
             btnAddHouse.Text = "+ Add New House";
@@ -486,15 +503,11 @@ namespace house_management
             btnAddHouse.BackColor = buttonColor;
             btnAddHouse.FlatStyle = FlatStyle.Flat;
             btnAddHouse.FlatAppearance.BorderSize = 0;
-            btnAddHouse.Size = new Size(160, 40);
-            btnAddHouse.Location = new Point(670, 20);
+            btnAddHouse.Size = new Size(170, 40);
+            btnAddHouse.Location = new Point(830, 20);
             btnAddHouse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnAddHouse.Cursor = Cursors.Hand;
-            btnAddHouse.Click += (s, e) => {
-                pnlAddHouseDialog.Visible = true;
-                pnlAddHouseDialog.BringToFront();
-                LayoutHouseViews();
-            };
+            btnAddHouse.Click += (s, e) => OpenAddHouseDialog();
             pnlMainContent.Controls.Add(btnAddHouse);
 
             // إعدادات الجدول
@@ -514,8 +527,12 @@ namespace house_management
             dgvHouses.BackgroundColor = Color.FromArgb(26, 16, 36);
 
             dgvHouses.SelectionChanged += (s, e) => {
-                btnDeleteHouse.Visible = dgvHouses.SelectedRows.Count > 0;
+                bool hasSelection = dgvHouses.SelectedRows.Count > 0;
+                btnDeleteHouse.Visible = hasSelection;
+                if (btnEditHouse != null) btnEditHouse.Visible = hasSelection;
             };
+
+            dgvHouses.CellDoubleClick += (s, e) => HandleEditHouse();
 
             DataGridViewCellStyle headerStyle = new DataGridViewCellStyle();
             headerStyle.BackColor = Color.FromArgb(45, 30, 60);
@@ -544,32 +561,40 @@ namespace house_management
 
             try { txtSearch.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, txtSearch.Width, txtSearch.Height, 10, 10)); } catch { }
             try { btnAddHouse.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, btnAddHouse.Width, btnAddHouse.Height, 10, 10)); } catch { }
+            try { btnEditHouse.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, btnEditHouse.Width, btnEditHouse.Height, 10, 10)); } catch { }
             try { btnDeleteHouse.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, btnDeleteHouse.Width, btnDeleteHouse.Height, 10, 10)); } catch { }
         }
 
         private void FilterHouses(string keyword)
         {
             dgvHouses.Rows.Clear();
-            var filtered = DatabaseHelper.GetHouses(keyword);
+            var filtered = Services.HouseService.GetAll(keyword);
 
             foreach (var house in filtered)
             {
-                dgvHouses.Rows.Add(house.ID, house.Name, house.Address, house.Status);
+                dgvHouses.Rows.Add(house.Id, house.Name, house.Address, Services.HouseService.StatusToDb(house.Status));
             }
         }
 
         private void HandleDeleteHouse()
         {
-            if (dgvHouses.SelectedRows.Count > 0)
+            if (dgvHouses.SelectedRows.Count == 0) return;
+
+            int houseId = Convert.ToInt32(dgvHouses.SelectedRows[0].Cells["ID"].Value);
+            string houseName = Convert.ToString(dgvHouses.SelectedRows[0].Cells["Name"].Value);
+
+            DialogResult result = MessageBox.Show(
+                $"Are you sure you want to delete '{houseName}'?\nThis action cannot be undone.",
+                "Confirm Delete",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (result == DialogResult.Yes)
             {
-                string houseId = dgvHouses.SelectedRows[0].Cells["ID"].Value.ToString();
-                string houseName = dgvHouses.SelectedRows[0].Cells["Name"].Value.ToString();
-
-                DialogResult result = MessageBox.Show($"Are you sure you want to delete ({houseName})?", "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-
-                if (result == DialogResult.Yes)
+                Services.HouseResult deleteResult = Services.HouseService.Delete(houseId);
+                if (deleteResult.Success)
                 {
-                    DatabaseHelper.DeleteHouse(houseId);
+                    MessageBox.Show(deleteResult.Message, "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                     txtSearch.Text = " 🔍 Search...";
                     txtSearch.ForeColor = Color.DarkGray;
@@ -577,7 +602,108 @@ namespace house_management
 
                     ShowHousesGrid();
                     btnDeleteHouse.Visible = false;
+                    if (btnEditHouse != null) btnEditHouse.Visible = false;
                 }
+                else
+                {
+                    MessageBox.Show(deleteResult.Message, "Cannot Delete", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+        }
+
+        private void HandleEditHouse()
+        {
+            if (dgvHouses == null || dgvHouses.SelectedRows.Count == 0) return;
+
+            int houseId = Convert.ToInt32(dgvHouses.SelectedRows[0].Cells["ID"].Value);
+            Models.House house = Services.HouseService.GetById(houseId);
+            if (house == null)
+            {
+                MessageBox.Show("This house no longer exists.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ShowHousesGrid();
+                return;
+            }
+
+            OpenEditHouseDialog(house);
+        }
+
+        private void OpenAddHouseDialog()
+        {
+            houseDialogIsEdit = false;
+            editingHouseId = null;
+            lblHouseDialogTitle.Text = "Add New House";
+            btnSaveHouse.Text = "SAVE";
+
+            txtNewName.Text = "House Name";
+            txtNewName.ForeColor = Color.DarkGray;
+            txtNewAddress.Text = "Address";
+            txtNewAddress.ForeColor = Color.DarkGray;
+            cmbNewStatus.SelectedIndex = 0;
+
+            pnlAddHouseDialog.Visible = true;
+            pnlAddHouseDialog.BringToFront();
+            LayoutHouseViews();
+            txtNewName.Focus();
+        }
+
+        private void OpenEditHouseDialog(Models.House house)
+        {
+            houseDialogIsEdit = true;
+            editingHouseId = house.Id;
+            lblHouseDialogTitle.Text = "Edit House";
+            btnSaveHouse.Text = "SAVE CHANGES";
+
+            txtNewName.Text = house.Name;
+            txtNewName.ForeColor = Color.White;
+            txtNewAddress.Text = house.Address;
+            txtNewAddress.ForeColor = Color.White;
+            cmbNewStatus.SelectedIndex = (int)house.Status;
+
+            pnlAddHouseDialog.Visible = true;
+            pnlAddHouseDialog.BringToFront();
+            LayoutHouseViews();
+            txtNewName.Focus();
+        }
+
+        private void SaveHouse()
+        {
+            string name = txtNewName.Text == "House Name" ? "" : txtNewName.Text;
+            string address = txtNewAddress.Text == "Address" ? "" : txtNewAddress.Text;
+            Models.HouseStatus status = cmbNewStatus.SelectedIndex == 1
+                ? Models.HouseStatus.Rented
+                : Models.HouseStatus.Available;
+
+            Models.House candidate = new Models.House
+            {
+                Id = editingHouseId ?? 0,
+                Name = name,
+                Address = address,
+                Status = status
+            };
+
+            Services.HouseResult result = houseDialogIsEdit
+                ? Services.HouseService.Update(candidate)
+                : Services.HouseService.Create(candidate);
+
+            if (result.Success)
+            {
+                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                txtNewName.Text = "House Name";
+                txtNewName.ForeColor = Color.DarkGray;
+                txtNewAddress.Text = "Address";
+                txtNewAddress.ForeColor = Color.DarkGray;
+                cmbNewStatus.SelectedIndex = 0;
+
+                pnlAddHouseDialog.Visible = false;
+                editingHouseId = null;
+                houseDialogIsEdit = false;
+                LayoutHouseViews();
+                ShowHousesGrid();
+            }
+            else
+            {
+                MessageBox.Show(result.Message, "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
@@ -736,7 +862,9 @@ namespace house_management
                 LayoutHouseViews();
             };
 
-            Label lblTitle = new Label
+            // Title label is tracked at the class level so OpenAddHouseDialog /
+            // OpenEditHouseDialog can swap its text dynamically.
+            lblHouseDialogTitle = new Label
             {
                 Text = "Add New House",
                 Font = new Font("Segoe UI", 14, FontStyle.Bold),
@@ -744,7 +872,7 @@ namespace house_management
                 Location = new Point(20, 20),
                 Size = new Size(300, 30)
             };
-            pnlAddHouseDialog.Controls.Add(lblTitle);
+            pnlAddHouseDialog.Controls.Add(lblHouseDialogTitle);
 
             txtNewName = new TextBox { Text = "House Name", BackColor = inputBgColor, ForeColor = Color.DarkGray, Font = new Font("Segoe UI", 11), Location = new Point(20, 75), Size = new Size(340, 45), BorderStyle = BorderStyle.FixedSingle };
             txtNewName.Enter += (s, e) => {
@@ -788,43 +916,24 @@ namespace house_management
             pnlAddHouseDialog.Controls.Add(txtNewAddress);
             pnlAddHouseDialog.Controls.Add(cmbNewStatus);
 
-            Button btnSave = new Button { Text = "SAVE", BackColor = buttonColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(20, 290), Size = new Size(160, 40), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-            Button btnCancel = new Button { Text = "CANCEL", BackColor = Color.FromArgb(70, 60, 80), ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(200, 290), Size = new Size(160, 40), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            // Save button is tracked at the class level so its text can be
+            // switched between "SAVE" and "SAVE CHANGES" depending on mode.
+            btnSaveHouse = new Button { Text = "SAVE", BackColor = buttonColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(20, 290), Size = new Size(160, 40), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnCancelHouse = new Button { Text = "CANCEL", BackColor = Color.FromArgb(70, 60, 80), ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(200, 290), Size = new Size(160, 40), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
 
-            btnSave.FlatAppearance.BorderSize = 0;
-            btnCancel.FlatAppearance.BorderSize = 0;
+            btnSaveHouse.FlatAppearance.BorderSize = 0;
+            btnCancelHouse.FlatAppearance.BorderSize = 0;
 
-            btnSave.Click += (s, e) => {
-                string name = txtNewName.Text == "House Name" ? "" : txtNewName.Text;
-                string address = txtNewAddress.Text == "Address" ? "" : txtNewAddress.Text;
-                string status = cmbNewStatus.SelectedItem != null ? cmbNewStatus.SelectedItem.ToString() : "Available";
-
-                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(address))
-                {
-                    MessageBox.Show("Please enter valid house name and address.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                DatabaseHelper.AddHouse(name, address, status);
-
-                txtNewName.Text = "House Name";
-                txtNewName.ForeColor = Color.DarkGray;
-                txtNewAddress.Text = "Address";
-                txtNewAddress.ForeColor = Color.DarkGray;
-                cmbNewStatus.SelectedIndex = 0;
-
+            btnSaveHouse.Click += (s, e) => SaveHouse();
+            btnCancelHouse.Click += (s, e) => {
                 pnlAddHouseDialog.Visible = false;
-                LayoutHouseViews();
-                ShowHousesGrid();
-            };
-
-            btnCancel.Click += (s, e) => {
-                pnlAddHouseDialog.Visible = false;
+                editingHouseId = null;
+                houseDialogIsEdit = false;
                 LayoutHouseViews();
             };
 
-            pnlAddHouseDialog.Controls.Add(btnSave);
-            pnlAddHouseDialog.Controls.Add(btnCancel);
+            pnlAddHouseDialog.Controls.Add(btnSaveHouse);
+            pnlAddHouseDialog.Controls.Add(btnCancelHouse);
 
             try { pnlAddHouseDialog.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, pnlAddHouseDialog.Width, pnlAddHouseDialog.Height, 15, 15)); } catch { }
         }
@@ -939,6 +1048,7 @@ namespace house_management
             btnAddHouse.Visible = true;
             txtSearch.Visible = true;
             btnDeleteHouse.Visible = dgvHouses.SelectedRows.Count > 0;
+            if (btnEditHouse != null) btnEditHouse.Visible = dgvHouses.SelectedRows.Count > 0;
 
             cardTotalHouses.Visible = false;
             cardAvailableHouses.Visible = false;
@@ -954,10 +1064,10 @@ namespace house_management
             if (txtSearch.Text == " 🔍 Search...")
             {
                 dgvHouses.Rows.Clear();
-                var houses = DatabaseHelper.GetHouses();
+                var houses = Services.HouseService.GetAll();
                 foreach (var house in houses)
                 {
-                    dgvHouses.Rows.Add(house.ID, house.Name, house.Address, house.Status);
+                    dgvHouses.Rows.Add(house.Id, house.Name, house.Address, Services.HouseService.StatusToDb(house.Status));
                 }
             }
         }
@@ -970,6 +1080,7 @@ namespace house_management
             dgvHouses.Visible = false;
             btnAddHouse.Visible = false;
             btnDeleteHouse.Visible = false;
+            if (btnEditHouse != null) btnEditHouse.Visible = false;
             pnlAddHouseDialog.Visible = false;
             txtSearch.Visible = false;
 
@@ -982,10 +1093,10 @@ namespace house_management
             HideTenantsView();
             HideRentalsView();
 
-            var houses = DatabaseHelper.GetHouses();
+            var houses = Services.HouseService.GetAll();
             lblTotalValue.Text = houses.Count.ToString();
-            lblAvailableValue.Text = houses.FindAll(h => h.Status == "Available").Count.ToString();
-            lblRentedValue.Text = houses.FindAll(h => h.Status == "Rented").Count.ToString();
+            lblAvailableValue.Text = houses.FindAll(h => h.Status == Models.HouseStatus.Available).Count.ToString();
+            lblRentedValue.Text = houses.FindAll(h => h.Status == Models.HouseStatus.Rented).Count.ToString();
         }
 
         /// <summary>
@@ -1168,6 +1279,127 @@ namespace house_management
             };
 
             textBox.Leave += (s, e) => {
+                currentBorderColor = Color.FromArgb(60, 90, 70, 110);
+                container.Invalidate();
+            };
+
+            try { container.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, container.Width, container.Height, 8, 8)); } catch { }
+            return container;
+        }
+
+        private Panel CreateModernComboBox(int x, int y, int width, int height, string iconText, out ComboBox targetCombo)
+        {
+            Panel container = new Panel();
+            container.Size = new Size(width, height);
+            container.Location = new Point(x, y);
+            container.BackColor = inputBgColor;
+
+            Label lblIcon = new Label();
+            lblIcon.Text = iconText;
+            lblIcon.ForeColor = Color.FromArgb(200, 190, 210);
+            lblIcon.Font = new Font("Segoe UI", 12);
+            lblIcon.AutoSize = true;
+            lblIcon.Location = new Point(12, (height - lblIcon.PreferredHeight) / 2);
+            container.Controls.Add(lblIcon);
+
+            ComboBox combo = new ComboBox();
+            combo.DropDownStyle = ComboBoxStyle.DropDownList;
+            combo.FlatStyle = FlatStyle.Flat;
+            combo.BackColor = inputBgColor;
+            combo.ForeColor = Color.White;
+            combo.Font = new Font("Segoe UI", 11);
+
+            int textLeft = lblIcon.Right + 8;
+            if (textLeft < 40) textLeft = 40;
+            combo.Location = new Point(textLeft, (height - combo.PreferredSize.Height) / 2);
+            combo.Width = width - textLeft - 8;
+
+            container.Controls.Add(combo);
+            targetCombo = combo;
+
+            Color currentBorderColor = Color.FromArgb(60, 90, 70, 110);
+
+            container.Paint += (s, e) => {
+                using (Pen pen = new Pen(currentBorderColor, 1.5f))
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    Rectangle rect = container.ClientRectangle;
+                    rect.Width -= 1;
+                    rect.Height -= 1;
+                    using (GraphicsPath path = GetRoundedRectPath(rect, 8))
+                    {
+                        e.Graphics.DrawPath(pen, path);
+                    }
+                }
+            };
+
+            combo.Enter += (s, e) => {
+                currentBorderColor = buttonColor;
+                container.Invalidate();
+            };
+
+            combo.Leave += (s, e) => {
+                currentBorderColor = Color.FromArgb(60, 90, 70, 110);
+                container.Invalidate();
+            };
+
+            try { container.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, container.Width, container.Height, 8, 8)); } catch { }
+            return container;
+        }
+
+        private Panel CreateModernDateTimePicker(int x, int y, int width, int height, string iconText, out DateTimePicker targetPicker)
+        {
+            Panel container = new Panel();
+            container.Size = new Size(width, height);
+            container.Location = new Point(x, y);
+            container.BackColor = inputBgColor;
+
+            Label lblIcon = new Label();
+            lblIcon.Text = iconText;
+            lblIcon.ForeColor = Color.FromArgb(200, 190, 210);
+            lblIcon.Font = new Font("Segoe UI", 12);
+            lblIcon.AutoSize = true;
+            lblIcon.Location = new Point(12, (height - lblIcon.PreferredHeight) / 2);
+            container.Controls.Add(lblIcon);
+
+            DateTimePicker picker = new DateTimePicker();
+            picker.Format = DateTimePickerFormat.Short;
+            picker.Font = new Font("Segoe UI", 11);
+            picker.CalendarMonthBackground = inputBgColor;
+            picker.CalendarTitleBackColor = buttonColor;
+            picker.CalendarTitleForeColor = Color.White;
+            picker.CalendarForeColor = Color.White;
+
+            int textLeft = lblIcon.Right + 8;
+            if (textLeft < 40) textLeft = 40;
+            picker.Location = new Point(textLeft, (height - picker.PreferredSize.Height) / 2);
+            picker.Width = width - textLeft - 8;
+
+            container.Controls.Add(picker);
+            targetPicker = picker;
+
+            Color currentBorderColor = Color.FromArgb(60, 90, 70, 110);
+
+            container.Paint += (s, e) => {
+                using (Pen pen = new Pen(currentBorderColor, 1.5f))
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    Rectangle rect = container.ClientRectangle;
+                    rect.Width -= 1;
+                    rect.Height -= 1;
+                    using (GraphicsPath path = GetRoundedRectPath(rect, 8))
+                    {
+                        e.Graphics.DrawPath(pen, path);
+                    }
+                }
+            };
+
+            picker.Enter += (s, e) => {
+                currentBorderColor = buttonColor;
+                container.Invalidate();
+            };
+
+            picker.Leave += (s, e) => {
                 currentBorderColor = Color.FromArgb(60, 90, 70, 110);
                 container.Invalidate();
             };

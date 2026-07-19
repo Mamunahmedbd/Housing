@@ -1,18 +1,9 @@
-C:\house management\house management\bin\Debug\house management.exe.config
-C:\house management\house management\bin\Debug\house management.exe
-C:\house management\house management\bin\Debug\house management.pdb
-C:\house management\house management\obj\Debug\house management.csproj.AssemblyReference.cache
-C:\house management\house management\obj\Debug\house_management.Properties.Resources.resources
-C:\house management\house management\obj\Debug\house management.csproj.GenerateResource.cache
-C:\house management\house management\obj\Debug\house management.csproj.CoreCompileInputs.cache
-C:\house management\house management\obj\Debug\house management.exe
-C:\house management\house management\obj\Debug\house management.pdb
-C:\Users\mamun\Downloads\Housing\house management\bin\Debug\house management.exe.config
-C:\Users\mamun\Downloads\Housing\house management\bin\Debug\house management.exe
-C:\Users\mamun\Downloads\Housing\house management\bin\Debug\house management.pdb
 C:\Users\mamun\Downloads\Housing\house management\obj\Debug\house management.csproj.AssemblyReference.cache
 C:\Users\mamun\Downloads\Housing\house management\obj\Debug\house_management.Properties.Resources.resources
 C:\Users\mamun\Downloads\Housing\house management\obj\Debug\house management.csproj.GenerateResource.cache
 C:\Users\mamun\Downloads\Housing\house management\obj\Debug\house management.csproj.CoreCompileInputs.cache
+C:\Users\mamun\Downloads\Housing\house management\bin\Debug\house management.exe.config
+C:\Users\mamun\Downloads\Housing\house management\bin\Debug\house management.exe
+C:\Users\mamun\Downloads\Housing\house management\bin\Debug\house management.pdb
 C:\Users\mamun\Downloads\Housing\house management\obj\Debug\house management.exe
 C:\Users\mamun\Downloads\Housing\house management\obj\Debug\house management.pdb
