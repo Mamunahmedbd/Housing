@@ -21,7 +21,7 @@ namespace house_management
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool SetProcessDPIAware();
 
-        private List<House> houseList = new List<House>();
+        // In-memory houseList is removed. DatabaseHelper is used instead.
 
         // --- عناصر شاشة تسجيل الدخول ---
         private Panel pnlGlassCard;
@@ -87,7 +87,7 @@ namespace house_management
 
             InitializeComponent();
             SetupFormLayout();
-            InitializeDefaultData();
+            // InitializeDefaultData is removed (handled by DatabaseHelper.InitializeDatabase)
             BuildLoginUI();
             BuildForgotPasswordDialog();
             BuildDashboardUI();
@@ -108,12 +108,7 @@ namespace house_management
             this.StartPosition = FormStartPosition.CenterScreen;
         }
 
-        private void InitializeDefaultData()
-        {
-            houseList.Add(new House { ID = "1", Name = "Green Villa", Address = "Downtown St 10", Status = "Available" });
-            houseList.Add(new House { ID = "2", Name = "Sunset Apartment", Address = "Beach Road Block 5", Status = "Rented" });
-            houseList.Add(new House { ID = "3", Name = "Royal Palace", Address = "Al-Mansour District", Status = "Available" });
-        }
+        // InitializeDefaultData was removed as initialization and seeding are done via DatabaseHelper.
 
         private void BuildLoginUI()
         {
@@ -251,7 +246,7 @@ namespace house_management
                 // simulate processing (replace with real auth call)
                 await Task.Delay(700);
 
-                if (txtEmail.Text.Trim() == "admin" && txtPassword.Text == "1234")
+                if (DatabaseHelper.ValidateUser(txtEmail.Text, txtPassword.Text))
                 {
                     pnlGlassCard.Visible = false;
                     pnlSidebar.Visible = true;
@@ -479,8 +474,7 @@ namespace house_management
         private void FilterHouses(string keyword)
         {
             dgvHouses.Rows.Clear();
-            var filtered = houseList.Where(h => h.Name.ToLower().Contains(keyword.ToLower()) ||
-                                                h.Address.ToLower().Contains(keyword.ToLower())).ToList();
+            var filtered = DatabaseHelper.GetHouses(keyword);
 
             foreach (var house in filtered)
             {
@@ -499,16 +493,7 @@ namespace house_management
 
                 if (result == DialogResult.Yes)
                 {
-                    var target = houseList.FirstOrDefault(h => h.ID == houseId);
-                    if (target != null)
-                    {
-                        houseList.Remove(target);
-
-                        for (int i = 0; i < houseList.Count; i++)
-                        {
-                            houseList[i].ID = (i + 1).ToString();
-                        }
-                    }
+                    DatabaseHelper.DeleteHouse(houseId);
 
                     txtSearch.Text = " 🔍 Search...";
                     txtSearch.ForeColor = Color.DarkGray;
@@ -631,15 +616,15 @@ namespace house_management
             btnSave.Click += (s, e) => {
                 string name = txtNewName.Text == "House Name" ? "" : txtNewName.Text;
                 string address = txtNewAddress.Text == "Address" ? "" : txtNewAddress.Text;
+                string status = cmbNewStatus.SelectedItem != null ? cmbNewStatus.SelectedItem.ToString() : "Available";
 
-                string nextID = (houseList.Count + 1).ToString();
-                houseList.Add(new House
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(address))
                 {
-                    ID = nextID,
-                    Name = name,
-                    Address = address,
-                    Status = cmbNewStatus.SelectedItem.ToString()
-                });
+                    MessageBox.Show("Please enter valid house name and address.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                DatabaseHelper.AddHouse(name, address, status);
 
                 txtNewName.Text = "House Name";
                 txtNewName.ForeColor = Color.DarkGray;
@@ -733,7 +718,8 @@ namespace house_management
             if (txtSearch.Text == " 🔍 Search...")
             {
                 dgvHouses.Rows.Clear();
-                foreach (var house in houseList)
+                var houses = DatabaseHelper.GetHouses();
+                foreach (var house in houses)
                 {
                     dgvHouses.Rows.Add(house.ID, house.Name, house.Address, house.Status);
                 }
@@ -755,9 +741,10 @@ namespace house_management
             cardAvailableHouses.Visible = true;
             cardRentedHouses.Visible = true;
 
-            lblTotalValue.Text = houseList.Count.ToString();
-            lblAvailableValue.Text = houseList.Count(h => h.Status == "Available").ToString();
-            lblRentedValue.Text = houseList.Count(h => h.Status == "Rented").ToString();
+            var houses = DatabaseHelper.GetHouses();
+            lblTotalValue.Text = houses.Count.ToString();
+            lblAvailableValue.Text = houses.FindAll(h => h.Status == "Available").Count.ToString();
+            lblRentedValue.Text = houses.FindAll(h => h.Status == "Rented").Count.ToString();
         }
 
         private Button CreateSidebarButton(string text, int topLocation)

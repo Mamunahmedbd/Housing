@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,6 +16,17 @@ namespace house_management
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            try
+            {
+                DatabaseHelper.InitializeDatabase();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Database Initialization Failed:\n" + ex.Message + "\n\nPlease ensure Microsoft SQL Server LocalDB is installed.", "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
             Application.Run(new Form1());
         }
     }
