@@ -378,7 +378,11 @@ namespace house_management
                 ("[dbo].[sp_GetUsers]",             UsersGet),
                 ("[dbo].[sp_CreateUser]",           UsersCreate),
                 ("[dbo].[sp_UpdateUser]",           UsersUpdate),
-                ("[dbo].[sp_ChangeUserPassword]",   UsersChangePassword)
+                ("[dbo].[sp_ChangeUserPassword]",   UsersChangePassword),
+                ("[dbo].[sp_GetTenants]",           TenantsGet),
+                ("[dbo].[sp_CreateTenant]",         TenantsCreate),
+                ("[dbo].[sp_UpdateTenant]",         TenantsUpdate),
+                ("[dbo].[sp_DeleteTenant]",         TenantsDelete)
             };
 
             private const string HousesGet = @"
@@ -502,83 +506,75 @@ BEGIN
     UPDATE [dbo].[Users]
        SET [password_hash] = @passwordHash,
            [updated_at]    = GETDATE()
+      WHERE [id] = @id;
+END;";
+
+            private const string TenantsGet = @"
+CREATE PROCEDURE [dbo].[sp_GetTenants]
+    @searchKeyword NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @searchKeyword IS NULL OR LTRIM(RTRIM(@searchKeyword)) = ''
+    BEGIN
+        SELECT [id], [name], [email], [phone], [created_at]
+          FROM [dbo].[Tenants]
+         ORDER BY [id] ASC;
+    END
+    ELSE
+    BEGIN
+        SELECT [id], [name], [email], [phone], [created_at]
+          FROM [dbo].[Tenants]
+         WHERE [name]  LIKE '%' + LTRIM(RTRIM(@searchKeyword)) + '%'
+            OR [email] LIKE '%' + LTRIM(RTRIM(@searchKeyword)) + '%'
+            OR [phone] LIKE '%' + LTRIM(RTRIM(@searchKeyword)) + '%'
+         ORDER BY [id] ASC;
+    END
+END;";
+
+            private const string TenantsCreate = @"
+CREATE PROCEDURE [dbo].[sp_CreateTenant]
+    @name  NVARCHAR(100),
+    @email NVARCHAR(100),
+    @phone NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO [dbo].[Tenants] ([name], [email], [phone])
+    VALUES (@name, @email, @phone);
+    SELECT CAST(SCOPE_IDENTITY() AS INT) AS [NewId];
+END;";
+
+            private const string TenantsUpdate = @"
+CREATE PROCEDURE [dbo].[sp_UpdateTenant]
+    @id    INT,
+    @name  NVARCHAR(100),
+    @email NVARCHAR(100),
+    @phone NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE [dbo].[Tenants]
+       SET [name]  = @name,
+           [email] = @email,
+           [phone] = @phone
      WHERE [id] = @id;
+END;";
+
+            private const string TenantsDelete = @"
+CREATE PROCEDURE [dbo].[sp_DeleteTenant]
+    @id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM [dbo].[Tenants] WHERE [id] = @id;
 END;";
         }
 
         // --- NEW PROJECT MODULES DATA & CRUD SUPPORT ---
-
-        public static List<Tenant> GetTenants(string searchKeyword = "")
-        {
-            List<Tenant> list = new List<Tenant>();
-            using (SqlConnection conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                string query = "SELECT id, name, email, phone FROM Tenants";
-                if (!string.IsNullOrEmpty(searchKeyword))
-                {
-                    query += " WHERE name LIKE @search OR email LIKE @search OR phone LIKE @search";
-                }
-                query += " ORDER BY id ASC";
-
-                using (SqlCommand cmd = new SqlCommand(query, conn))
-                {
-                    if (!string.IsNullOrEmpty(searchKeyword))
-                        cmd.Parameters.AddWithValue("@search", "%" + searchKeyword + "%");
-
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            list.Add(new Tenant
-                            {
-                                ID = reader["id"].ToString(),
-                                Name = reader["name"].ToString(),
-                                Email = reader["email"].ToString(),
-                                Phone = reader["phone"].ToString()
-                            });
-                        }
-                    }
-                }
-            }
-            return list;
-        }
-
-        public static bool AddTenant(string name, string email, string phone)
-        {
-            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(phone))
-                return false;
-
-            using (SqlConnection conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                string query = "INSERT INTO Tenants (name, email, phone) VALUES (@name, @email, @phone)";
-                using (SqlCommand cmd = new SqlCommand(query, conn))
-                {
-                    cmd.Parameters.AddWithValue("@name", name.Trim());
-                    cmd.Parameters.AddWithValue("@email", email.Trim());
-                    cmd.Parameters.AddWithValue("@phone", phone.Trim());
-                    return cmd.ExecuteNonQuery() > 0;
-                }
-            }
-        }
-
-        public static bool DeleteTenant(string id)
-        {
-            if (string.IsNullOrEmpty(id))
-                return false;
-
-            using (SqlConnection conn = new SqlConnection(connectionString))
-            {
-                conn.Open();
-                string query = "DELETE FROM Tenants WHERE id = @id";
-                using (SqlCommand cmd = new SqlCommand(query, conn))
-                {
-                    cmd.Parameters.AddWithValue("@id", id);
-                    return cmd.ExecuteNonQuery() > 0;
-                }
-            }
-        }
+        // Tenants are managed exclusively through Services.TenantService
+        // (validation, business rules and stored procedures). The legacy
+        // inline GetTenants/AddTenant/DeleteTenant methods have been removed.
 
         public static List<Rental> GetRentals(string searchKeyword = "")
         {
@@ -773,14 +769,8 @@ END;";
     }
 
     // --- DATA MODULE RECORD CLASSES ---
-
-    public class Tenant
-    {
-        public string ID { get; set; }
-        public string Name { get; set; }
-        public string Email { get; set; }
-        public string Phone { get; set; }
-    }
+    // NOTE: Tenant now lives in Models/Tenant.cs (typed Id, used by TenantService).
+    // Rental and UserRecord remain here pending their own service-layer migration.
 
     public class Rental
     {

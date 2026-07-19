@@ -87,13 +87,43 @@ namespace house_management
             BuildRentalDialog();
         }
 
+        private void LayoutRentalViews()
+        {
+            if (pnlRentalDialog == null || dgvRentals == null || pnlMainContent == null) return;
+
+            // Layout top row controls dynamically from the right edge
+            int rightEdge = pnlMainContent.Width - 25;
+            if (btnAddRental != null)
+            {
+                btnAddRental.Left = rightEdge - btnAddRental.Width;
+                if (btnDeleteRental != null)
+                {
+                    btnDeleteRental.Left = btnAddRental.Left - btnDeleteRental.Width - 15;
+                }
+            }
+
+            if (pnlRentalDialog.Visible)
+            {
+                pnlRentalDialog.Width = 380;
+                pnlRentalDialog.Height = pnlMainContent.Height - 115;
+                pnlRentalDialog.Location = new Point(pnlMainContent.Width - 380 - 25, 90);
+                dgvRentals.Width = pnlMainContent.Width - 380 - 60;
+                try { pnlRentalDialog.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, pnlRentalDialog.Width, pnlRentalDialog.Height, 15, 15)); } catch { }
+            }
+            else
+            {
+                dgvRentals.Width = pnlMainContent.Width - 50;
+            }
+            dgvRentals.Height = pnlMainContent.Height - 115;
+        }
+
         private void BuildRentalsGrid()
         {
             dgvRentals = new DataGridView
             {
                 Size = new Size(800, 470),
                 Location = new Point(25, 90),
-                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left,
                 BorderStyle = BorderStyle.FixedSingle,
                 CellBorderStyle = DataGridViewCellBorderStyle.Single,
                 GridColor = Color.FromArgb(90, 70, 110),
@@ -149,7 +179,7 @@ namespace house_management
         {
             pnlRentalDialog = new Panel
             {
-                Size = new Size(400, 420),
+                Size = new Size(380, 470),
                 BackColor = Color.FromArgb(35, 22, 48),
                 BorderStyle = BorderStyle.FixedSingle,
                 Visible = false
@@ -157,9 +187,7 @@ namespace house_management
             pnlMainContent.Controls.Add(pnlRentalDialog);
             pnlMainContent.Resize += (s, e) =>
             {
-                pnlRentalDialog.Location = new Point(
-                    (pnlMainContent.Width - pnlRentalDialog.Width) / 2,
-                    (pnlMainContent.Height - pnlRentalDialog.Height) / 2);
+                LayoutRentalViews();
             };
 
             lblRentalDialogTitle = new Label
@@ -167,38 +195,42 @@ namespace house_management
                 Text = "New Rental Contract",
                 Font = new Font("Segoe UI", 14, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(20, 15),
+                Location = new Point(20, 20),
                 Size = new Size(300, 30)
             };
             pnlRentalDialog.Controls.Add(lblRentalDialogTitle);
 
-            Label lblHouse = new Label { Text = "House", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(200, 190, 210), Location = new Point(20, 55), Size = new Size(360, 18) };
-            cmbRentalHouse = new ComboBox { BackColor = inputBgColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11), Location = new Point(20, 75), Size = new Size(360, 35), FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
+            Label lblHouse = new Label { Text = "House", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(200, 190, 210), Location = new Point(20, 60), Size = new Size(160, 18) };
+            cmbRentalHouse = new ComboBox { BackColor = inputBgColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11), Location = new Point(20, 80), Size = new Size(160, 35), FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
             pnlRentalDialog.Controls.Add(lblHouse);
             pnlRentalDialog.Controls.Add(cmbRentalHouse);
 
-            Label lblTenant = new Label { Text = "Tenant", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(200, 190, 210), Location = new Point(20, 120), Size = new Size(360, 18) };
-            cmbRentalTenant = new ComboBox { BackColor = inputBgColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11), Location = new Point(20, 140), Size = new Size(360, 35), FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
+            Label lblTenant = new Label { Text = "Tenant", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(200, 190, 210), Location = new Point(200, 60), Size = new Size(160, 18) };
+            cmbRentalTenant = new ComboBox { BackColor = inputBgColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11), Location = new Point(200, 80), Size = new Size(160, 35), FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
             pnlRentalDialog.Controls.Add(lblTenant);
             pnlRentalDialog.Controls.Add(cmbRentalTenant);
 
-            Panel pnlRentContainer = CreateModernTextBox("Rent Amount (e.g. 1200)", 20, 195, 360, 45, "💵", false, out txtRentalAmount);
+            Panel pnlRentContainer = CreateModernTextBox("Rent Amount (e.g. 1200)", 20, 135, 340, 45, "💵", false, out txtRentalAmount);
             pnlRentalDialog.Controls.Add(pnlRentContainer);
 
-            Panel pnlStartContainer = CreateModernTextBox("Start Date (YYYY-MM-DD)", 20, 250, 360, 45, "📅", false, out txtRentalStart);
+            Label lblStart = new Label { Text = "Start Date", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(200, 190, 210), Location = new Point(20, 195), Size = new Size(160, 18) };
+            Panel pnlStartContainer = CreateModernTextBox("YYYY-MM-DD", 20, 215, 160, 45, "📅", false, out txtRentalStart);
+            pnlRentalDialog.Controls.Add(lblStart);
             pnlRentalDialog.Controls.Add(pnlStartContainer);
 
-            Panel pnlEndContainer = CreateModernTextBox("End Date (YYYY-MM-DD)", 20, 305, 360, 45, "📅", false, out txtRentalEnd);
+            Label lblEnd = new Label { Text = "End Date", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(200, 190, 210), Location = new Point(200, 195), Size = new Size(160, 18) };
+            Panel pnlEndContainer = CreateModernTextBox("YYYY-MM-DD", 200, 215, 160, 45, "📅", false, out txtRentalEnd);
+            pnlRentalDialog.Controls.Add(lblEnd);
             pnlRentalDialog.Controls.Add(pnlEndContainer);
 
-            btnRentalSave = new Button { Text = "SAVE", BackColor = buttonColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(20, 360), Size = new Size(160, 45), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-            btnRentalCancel = new Button { Text = "CANCEL", BackColor = Color.FromArgb(70, 60, 80), ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(220, 360), Size = new Size(160, 45), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnRentalSave = new Button { Text = "SAVE", BackColor = buttonColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(20, 280), Size = new Size(160, 40), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            btnRentalCancel = new Button { Text = "CANCEL", BackColor = Color.FromArgb(70, 60, 80), ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(200, 280), Size = new Size(160, 40), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
 
             btnRentalSave.FlatAppearance.BorderSize = 0;
             btnRentalCancel.FlatAppearance.BorderSize = 0;
 
             btnRentalSave.Click += (s, e) => HandleSaveRental();
-            btnRentalCancel.Click += (s, e) => { pnlRentalDialog.Visible = false; };
+            btnRentalCancel.Click += (s, e) => { pnlRentalDialog.Visible = false; LayoutRentalViews(); };
 
             pnlRentalDialog.Controls.Add(btnRentalSave);
             pnlRentalDialog.Controls.Add(btnRentalCancel);
@@ -228,6 +260,7 @@ namespace house_management
             btnAddRental.Visible = true;
             btnDeleteRental.Visible = dgvRentals.SelectedRows.Count > 0;
 
+            LayoutRentalViews();
             ReloadRentalsGrid();
         }
 
@@ -272,10 +305,10 @@ namespace house_management
 
             // Populate Tenant dropdown
             cmbRentalTenant.Items.Clear();
-            var tenants = DatabaseHelper.GetTenants();
+            var tenants = Services.TenantService.GetAll();
             foreach (var t in tenants)
             {
-                cmbRentalTenant.Items.Add(new RentalComboItem { ID = t.ID, Name = t.Name });
+                cmbRentalTenant.Items.Add(new RentalComboItem { ID = t.Id.ToString(), Name = t.Name });
             }
             if (cmbRentalTenant.Items.Count > 0) cmbRentalTenant.SelectedIndex = 0;
 
@@ -283,11 +316,9 @@ namespace house_management
             txtRentalStart.Text = DateTime.Now.ToString("yyyy-MM-dd");
             txtRentalEnd.Text = DateTime.Now.AddYears(1).ToString("yyyy-MM-dd");
 
-            pnlRentalDialog.Location = new Point(
-                (pnlMainContent.Width - pnlRentalDialog.Width) / 2,
-                (pnlMainContent.Height - pnlRentalDialog.Height) / 2);
             pnlRentalDialog.Visible = true;
             pnlRentalDialog.BringToFront();
+            LayoutRentalViews();
             txtRentalAmount.Focus();
         }
 
@@ -321,6 +352,7 @@ namespace house_management
             if (success)
             {
                 pnlRentalDialog.Visible = false;
+                LayoutRentalViews();
                 ReloadRentalsGrid();
             }
             else

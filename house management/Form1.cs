@@ -167,6 +167,13 @@ namespace house_management
             pnlGlassCard.MouseDown += DragForm_MouseDown;
             this.Controls.Add(pnlGlassCard);
 
+            this.Resize += (s, e) => {
+                if (pnlGlassCard != null && pnlGlassCard.Visible)
+                {
+                    pnlGlassCard.Location = new Point((this.ClientSize.Width - pnlGlassCard.Width) / 2, (this.ClientSize.Height - pnlGlassCard.Height) / 2);
+                }
+            };
+
             // Subtle glassmorphism border drawing
             pnlGlassCard.Paint += (s, e) => {
                 using (Pen borderPen = new Pen(Color.FromArgb(40, 255, 255, 255), 1.5f))
@@ -483,14 +490,18 @@ namespace house_management
             btnAddHouse.Location = new Point(670, 20);
             btnAddHouse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnAddHouse.Cursor = Cursors.Hand;
-            btnAddHouse.Click += (s, e) => { pnlAddHouseDialog.Visible = true; pnlAddHouseDialog.BringToFront(); };
+            btnAddHouse.Click += (s, e) => {
+                pnlAddHouseDialog.Visible = true;
+                pnlAddHouseDialog.BringToFront();
+                LayoutHouseViews();
+            };
             pnlMainContent.Controls.Add(btnAddHouse);
 
             // إعدادات الجدول
             dgvHouses = new DataGridView();
             dgvHouses.Size = new Size(800, 470);
             dgvHouses.Location = new Point(25, 90);
-            dgvHouses.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dgvHouses.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
             dgvHouses.BorderStyle = BorderStyle.FixedSingle;
             dgvHouses.CellBorderStyle = DataGridViewCellBorderStyle.Single;
             dgvHouses.GridColor = Color.FromArgb(90, 70, 110);
@@ -681,31 +692,61 @@ namespace house_management
             return card;
         }
 
+        private void LayoutHouseViews()
+        {
+            if (pnlAddHouseDialog == null || dgvHouses == null || pnlMainContent == null) return;
+
+            // Layout top row controls dynamically from the right edge
+            int rightEdge = pnlMainContent.Width - 25;
+            if (btnAddHouse != null)
+            {
+                btnAddHouse.Left = rightEdge - btnAddHouse.Width;
+                if (btnDeleteHouse != null)
+                {
+                    btnDeleteHouse.Left = btnAddHouse.Left - btnDeleteHouse.Width - 15;
+                }
+            }
+
+            if (pnlAddHouseDialog.Visible)
+            {
+                pnlAddHouseDialog.Width = 380;
+                pnlAddHouseDialog.Height = pnlMainContent.Height - 115;
+                pnlAddHouseDialog.Location = new Point(pnlMainContent.Width - 380 - 25, 90);
+                dgvHouses.Width = pnlMainContent.Width - 380 - 60;
+                try { pnlAddHouseDialog.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, pnlAddHouseDialog.Width, pnlAddHouseDialog.Height, 15, 15)); } catch { }
+            }
+            else
+            {
+                dgvHouses.Width = pnlMainContent.Width - 50;
+            }
+            dgvHouses.Height = pnlMainContent.Height - 115;
+        }
+
         private void BuildAddHouseDialog()
         {
             pnlAddHouseDialog = new Panel();
-            pnlAddHouseDialog.Size = new Size(400, 320);
-            pnlAddHouseDialog.Location = new Point((pnlMainContent.Width - 400) / 2, (pnlMainContent.Height - 320) / 2);
+            pnlAddHouseDialog.Size = new Size(380, 470);
+            pnlAddHouseDialog.Location = new Point(pnlMainContent.Width - 380 - 25, 90);
             pnlAddHouseDialog.BackColor = Color.FromArgb(35, 22, 48);
             pnlAddHouseDialog.BorderStyle = BorderStyle.FixedSingle;
             pnlAddHouseDialog.Visible = false;
             pnlMainContent.Controls.Add(pnlAddHouseDialog);
 
             pnlMainContent.Resize += (s, e) => {
-                pnlAddHouseDialog.Location = new Point((pnlMainContent.Width - pnlAddHouseDialog.Width) / 2, (pnlMainContent.Height - pnlAddHouseDialog.Height) / 2);
+                LayoutHouseViews();
             };
 
             Label lblTitle = new Label
             {
-                Text = "Add New House Details",
+                Text = "Add New House",
                 Font = new Font("Segoe UI", 14, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(20, 15),
+                Location = new Point(20, 20),
                 Size = new Size(300, 30)
             };
             pnlAddHouseDialog.Controls.Add(lblTitle);
 
-            txtNewName = new TextBox { Text = "House Name", BackColor = inputBgColor, ForeColor = Color.DarkGray, Font = new Font("Segoe UI", 11), Location = new Point(20, 70), Size = new Size(360, 35), BorderStyle = BorderStyle.FixedSingle };
+            txtNewName = new TextBox { Text = "House Name", BackColor = inputBgColor, ForeColor = Color.DarkGray, Font = new Font("Segoe UI", 11), Location = new Point(20, 75), Size = new Size(340, 45), BorderStyle = BorderStyle.FixedSingle };
             txtNewName.Enter += (s, e) => {
                 if (txtNewName.Text == "House Name")
                 {
@@ -721,7 +762,7 @@ namespace house_management
                 }
             };
 
-            txtNewAddress = new TextBox { Text = "Address", BackColor = inputBgColor, ForeColor = Color.DarkGray, Font = new Font("Segoe UI", 11), Location = new Point(20, 125), Size = new Size(360, 35), BorderStyle = BorderStyle.FixedSingle };
+            txtNewAddress = new TextBox { Text = "Address", BackColor = inputBgColor, ForeColor = Color.DarkGray, Font = new Font("Segoe UI", 11), Location = new Point(20, 140), Size = new Size(340, 45), BorderStyle = BorderStyle.FixedSingle };
             txtNewAddress.Enter += (s, e) => {
                 if (txtNewAddress.Text == "Address")
                 {
@@ -737,16 +778,18 @@ namespace house_management
                 }
             };
 
-            cmbNewStatus = new ComboBox { BackColor = inputBgColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11), Location = new Point(20, 180), Size = new Size(360, 35), FlatStyle = FlatStyle.Flat };
+            Label lblStatus = new Label { Text = "Status", Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(200, 190, 210), Location = new Point(20, 205), Size = new Size(340, 18) };
+            cmbNewStatus = new ComboBox { BackColor = inputBgColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11), Location = new Point(20, 225), Size = new Size(340, 35), FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList };
             cmbNewStatus.Items.AddRange(new string[] { "Available", "Rented" });
             cmbNewStatus.SelectedIndex = 0;
 
+            pnlAddHouseDialog.Controls.Add(lblStatus);
             pnlAddHouseDialog.Controls.Add(txtNewName);
             pnlAddHouseDialog.Controls.Add(txtNewAddress);
             pnlAddHouseDialog.Controls.Add(cmbNewStatus);
 
-            Button btnSave = new Button { Text = "SAVE", BackColor = buttonColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(20, 245), Size = new Size(170, 45), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-            Button btnCancel = new Button { Text = "CANCEL", BackColor = Color.FromArgb(70, 60, 80), ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(210, 245), Size = new Size(170, 45), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            Button btnSave = new Button { Text = "SAVE", BackColor = buttonColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(20, 290), Size = new Size(160, 40), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            Button btnCancel = new Button { Text = "CANCEL", BackColor = Color.FromArgb(70, 60, 80), ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(200, 290), Size = new Size(160, 40), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
 
             btnSave.FlatAppearance.BorderSize = 0;
             btnCancel.FlatAppearance.BorderSize = 0;
@@ -771,11 +814,13 @@ namespace house_management
                 cmbNewStatus.SelectedIndex = 0;
 
                 pnlAddHouseDialog.Visible = false;
+                LayoutHouseViews();
                 ShowHousesGrid();
             };
 
             btnCancel.Click += (s, e) => {
                 pnlAddHouseDialog.Visible = false;
+                LayoutHouseViews();
             };
 
             pnlAddHouseDialog.Controls.Add(btnSave);
@@ -903,6 +948,8 @@ namespace house_management
             HideUsersView();
             HideTenantsView();
             HideRentalsView();
+
+            LayoutHouseViews();
 
             if (txtSearch.Text == " 🔍 Search...")
             {
@@ -1208,13 +1255,13 @@ namespace house_management
         {
             if (this.WindowState == FormWindowState.Maximized)
             {
+                this.MaximumSize = Size.Empty;
                 this.WindowState = FormWindowState.Normal;
                 if (btnHeaderMaximize != null) btnHeaderMaximize.Text = "🗖";
             }
             else
             {
-                Screen currentScreen = Screen.FromControl(this);
-                this.MaximizedBounds = currentScreen.WorkingArea;
+                this.MaximumSize = Screen.FromControl(this).WorkingArea.Size;
                 this.WindowState = FormWindowState.Maximized;
                 if (btnHeaderMaximize != null) btnHeaderMaximize.Text = "🗗";
             }

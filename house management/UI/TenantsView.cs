@@ -1,21 +1,29 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using house_management.Models;
+using house_management.Services;
 
 namespace house_management
 {
+    /// <summary>
+    /// Tenant-management view for the main form. Kept as a partial class so
+    /// Form1.cs stays focused on Houses while all tenant CRUD UI lives here.
+    /// Mirrors the architecture of <see cref="UsersView"/>: the UI only talks
+    /// to <see cref="TenantService"/>, never to the database directly.
+    /// </summary>
     public partial class Form1
     {
-        // --- Tenants Content Controls ---
+        // --- Tenants content controls ---
         private DataGridView dgvTenants;
         private TextBox txtTenantSearch;
         private Button btnAddTenant;
+        private Button btnEditTenant;
         private Button btnDeleteTenant;
         private bool tenantSearchPlaceholderActive = true;
 
-        // --- Add Tenant Dialog ---
+        // --- Add/Edit tenant dialog ---
         private Panel pnlTenantDialog;
         private Label lblTenantDialogTitle;
         private TextBox txtTenantName;
@@ -23,10 +31,12 @@ namespace house_management
         private TextBox txtTenantPhone;
         private Button btnTenantSave;
         private Button btnTenantCancel;
+        private int? editingTenantId;
+        private bool tenantDialogIsEdit;
 
         // =====================================================================
         //  BUILD
-// =====================================================================
+        // =====================================================================
 
         private void BuildTenantsView()
         {
@@ -73,16 +83,22 @@ namespace house_management
             };
             pnlMainContent.Controls.Add(txtTenantSearch);
 
-            btnDeleteTenant = CreateActionButton("🗑 Delete Tenant", deleteBtnColor, 480, 180);
+            btnDeleteTenant = CreateActionButton("🗑 Delete Selected", deleteBtnColor, 430, 200);
             btnDeleteTenant.Click += (s, e) => HandleDeleteTenant();
             pnlMainContent.Controls.Add(btnDeleteTenant);
 
-            btnAddTenant = CreateActionButton("+ Add Tenant", buttonColor, 670, 160);
+            btnEditTenant = CreateActionButton("✎ Edit Selected", Color.FromArgb(70, 110, 90), 640, 160);
+            btnEditTenant.Click += (s, e) => HandleEditTenant();
+            pnlMainContent.Controls.Add(btnEditTenant);
+
+            btnAddTenant = CreateActionButton("+ Add New Tenant", buttonColor, 810, 180);
             btnAddTenant.Click += (s, e) => OpenAddTenantDialog();
             pnlMainContent.Controls.Add(btnAddTenant);
 
             BuildTenantsGrid();
             BuildTenantDialog();
+
+            dgvTenants.CellDoubleClick += (s, e) => HandleEditTenant();
         }
 
         private Button CreateActionButton(string text, Color backColor, int x, int width)
@@ -117,7 +133,7 @@ namespace house_management
             {
                 Size = new Size(800, 470),
                 Location = new Point(25, 90),
-                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left,
                 BorderStyle = BorderStyle.FixedSingle,
                 CellBorderStyle = DataGridViewCellBorderStyle.Single,
                 GridColor = Color.FromArgb(90, 70, 110),
@@ -131,10 +147,7 @@ namespace house_management
                 Visible = false
             };
 
-            dgvTenants.SelectionChanged += (s, e) =>
-            {
-                btnDeleteTenant.Visible = dgvTenants.SelectedRows.Count > 0;
-            };
+            dgvTenants.SelectionChanged += (s, e) => UpdateTenantActionButtonsVisibility();
 
             DataGridViewCellStyle headerStyle = new DataGridViewCellStyle
             {
@@ -158,19 +171,55 @@ namespace house_management
             dgvTenants.RowsDefaultCellStyle = rowStyle;
             dgvTenants.RowTemplate.Height = 42;
 
-            dgvTenants.Columns.Add("TenantID", "Tenant ID");
-            dgvTenants.Columns.Add("TenantName", "Name");
-            dgvTenants.Columns.Add("TenantEmail", "Email Address");
-            dgvTenants.Columns.Add("TenantPhone", "Phone Number");
+            dgvTenants.Columns.Add("colTenantId", "ID");
+            dgvTenants.Columns.Add("colTenantName", "Name");
+            dgvTenants.Columns.Add("colTenantEmail", "Email");
+            dgvTenants.Columns.Add("colTenantPhone", "Phone");
+            dgvTenants.Columns.Add("colTenantCreated", "Registered On");
+            dgvTenants.Columns["colTenantId"].Visible = false;
 
             pnlMainContent.Controls.Add(dgvTenants);
+        }
+
+        private void LayoutTenantViews()
+        {
+            if (pnlTenantDialog == null || dgvTenants == null || pnlMainContent == null) return;
+
+            // Layout top row controls dynamically from the right edge
+            int rightEdge = pnlMainContent.Width - 25;
+            if (btnAddTenant != null)
+            {
+                btnAddTenant.Left = rightEdge - btnAddTenant.Width;
+                if (btnEditTenant != null)
+                {
+                    btnEditTenant.Left = btnAddTenant.Left - btnEditTenant.Width - 15;
+                    if (btnDeleteTenant != null)
+                    {
+                        btnDeleteTenant.Left = btnEditTenant.Left - btnDeleteTenant.Width - 15;
+                    }
+                }
+            }
+
+            if (pnlTenantDialog.Visible)
+            {
+                pnlTenantDialog.Width = 380;
+                pnlTenantDialog.Height = pnlMainContent.Height - 115;
+                pnlTenantDialog.Location = new Point(pnlMainContent.Width - 380 - 25, 90);
+                dgvTenants.Width = pnlMainContent.Width - 380 - 60;
+                try { pnlTenantDialog.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, pnlTenantDialog.Width, pnlTenantDialog.Height, 15, 15)); } catch { }
+            }
+            else
+            {
+                dgvTenants.Width = pnlMainContent.Width - 50;
+            }
+            dgvTenants.Height = pnlMainContent.Height - 115;
         }
 
         private void BuildTenantDialog()
         {
             pnlTenantDialog = new Panel
             {
-                Size = new Size(400, 320),
+                Size = new Size(380, 470),
                 BackColor = Color.FromArgb(35, 22, 48),
                 BorderStyle = BorderStyle.FixedSingle,
                 Visible = false
@@ -178,47 +227,71 @@ namespace house_management
             pnlMainContent.Controls.Add(pnlTenantDialog);
             pnlMainContent.Resize += (s, e) =>
             {
-                pnlTenantDialog.Location = new Point(
-                    (pnlMainContent.Width - pnlTenantDialog.Width) / 2,
-                    (pnlMainContent.Height - pnlTenantDialog.Height) / 2);
+                LayoutTenantViews();
             };
 
             lblTenantDialogTitle = new Label
             {
-                Text = "Add New Tenant Details",
+                Text = "Add New Tenant",
                 Font = new Font("Segoe UI", 14, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(20, 15),
+                Location = new Point(20, 20),
                 Size = new Size(300, 30)
             };
             pnlTenantDialog.Controls.Add(lblTenantDialogTitle);
 
-            Panel pnlTenantNameContainer = CreateModernTextBox("Tenant Name", 20, 60, 360, 45, "👤", false, out txtTenantName);
-            pnlTenantDialog.Controls.Add(pnlTenantNameContainer);
+            Panel pnlName = CreateModernTextBox("Tenant Name", 20, 75, 340, 45, "👤", false, out txtTenantName);
+            Panel pnlEmail = CreateModernTextBox("Email Address", 20, 140, 340, 45, "✉", false, out txtTenantEmail);
+            Panel pnlPhone = CreateModernTextBox("Phone Number", 20, 205, 340, 45, "📞", false, out txtTenantPhone);
+            pnlTenantDialog.Controls.Add(pnlName);
+            pnlTenantDialog.Controls.Add(pnlEmail);
+            pnlTenantDialog.Controls.Add(pnlPhone);
 
-            Panel pnlTenantEmailContainer = CreateModernTextBox("Email Address", 20, 120, 360, 45, "✉️", false, out txtTenantEmail);
-            pnlTenantDialog.Controls.Add(pnlTenantEmailContainer);
-
-            Panel pnlTenantPhoneContainer = CreateModernTextBox("Phone Number", 20, 180, 360, 45, "📞", false, out txtTenantPhone);
-            pnlTenantDialog.Controls.Add(pnlTenantPhoneContainer);
-
-            btnTenantSave = new Button { Text = "SAVE", BackColor = buttonColor, ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(20, 245), Size = new Size(160, 45), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-            btnTenantCancel = new Button { Text = "CANCEL", BackColor = Color.FromArgb(70, 60, 80), ForeColor = Color.White, Font = new Font("Segoe UI", 11, FontStyle.Bold), Location = new Point(220, 245), Size = new Size(160, 45), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-
+            btnTenantSave = new Button
+            {
+                Text = "SAVE",
+                BackColor = buttonColor,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Location = new Point(20, 270),
+                Size = new Size(160, 40),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
             btnTenantSave.FlatAppearance.BorderSize = 0;
-            btnTenantCancel.FlatAppearance.BorderSize = 0;
-
-            btnTenantSave.Click += (s, e) => HandleSaveTenant();
-            btnTenantCancel.Click += (s, e) => { pnlTenantDialog.Visible = false; };
-
+            btnTenantSave.Click += (s, e) => SaveTenant();
             pnlTenantDialog.Controls.Add(btnTenantSave);
+
+            btnTenantCancel = new Button
+            {
+                Text = "CANCEL",
+                BackColor = Color.FromArgb(70, 60, 80),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Location = new Point(200, 270),
+                Size = new Size(160, 40),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnTenantCancel.FlatAppearance.BorderSize = 0;
+            btnTenantCancel.Click += (s, e) => CloseTenantDialog();
             pnlTenantDialog.Controls.Add(btnTenantCancel);
+
+            Label lblHint = new Label
+            {
+                Text = "All fields are required. Email must be unique.",
+                Font = new Font("Segoe UI", 9, FontStyle.Italic),
+                ForeColor = Color.FromArgb(160, 150, 180),
+                Location = new Point(20, 305),
+                Size = new Size(380, 30)
+            };
+            pnlTenantDialog.Controls.Add(lblHint);
 
             try { pnlTenantDialog.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, pnlTenantDialog.Width, pnlTenantDialog.Height, 15, 15)); } catch { }
         }
 
         // =====================================================================
-        //  ACTIONS & CRUD ROUTING
+        //  NAVIGATION
         // =====================================================================
 
         private void ShowTenantsGrid()
@@ -227,19 +300,20 @@ namespace house_management
 
             lblSectionTitle.Text = "Manage Tenant Users";
 
-            // Hide other views
+            // Hide other modules' UI.
             HideDashboardDataView();
             HideHousesViewHelper();
             HideUsersView();
             HideRentalsView();
 
-            // Show Tenant View
+            // Show tenant UI.
             dgvTenants.Visible = true;
             txtTenantSearch.Visible = true;
             btnAddTenant.Visible = true;
-            btnDeleteTenant.Visible = dgvTenants.SelectedRows.Count > 0;
 
+            LayoutTenantViews();
             ReloadTenantsGrid();
+            UpdateTenantActionButtonsVisibility();
         }
 
         private void HideTenantsView()
@@ -247,79 +321,169 @@ namespace house_management
             if (dgvTenants != null) dgvTenants.Visible = false;
             if (txtTenantSearch != null) txtTenantSearch.Visible = false;
             if (btnAddTenant != null) btnAddTenant.Visible = false;
+            if (btnEditTenant != null) btnEditTenant.Visible = false;
             if (btnDeleteTenant != null) btnDeleteTenant.Visible = false;
             if (pnlTenantDialog != null) pnlTenantDialog.Visible = false;
         }
 
         private void ReloadTenantsGrid()
         {
-            string keyword = tenantSearchPlaceholderActive ? "" : txtTenantSearch.Text.Trim();
+            string keyword = tenantSearchPlaceholderActive ? string.Empty : txtTenantSearch.Text.Trim();
             FilterTenants(keyword);
         }
 
         private void FilterTenants(string keyword)
         {
             dgvTenants.Rows.Clear();
-            var list = DatabaseHelper.GetTenants(keyword);
-            foreach (var t in list)
+
+            List<Tenant> tenants = TenantService.GetAll(keyword);
+            foreach (Tenant t in tenants)
             {
-                dgvTenants.Rows.Add(t.ID, t.Name, t.Email, t.Phone);
+                dgvTenants.Rows.Add(
+                    t.Id,
+                    t.Name,
+                    t.Email,
+                    t.Phone,
+                    t.CreatedAt.HasValue ? t.CreatedAt.Value.ToString("yyyy-MM-dd") : "—"
+                );
             }
+
+            UpdateTenantActionButtonsVisibility();
         }
+
+        private void UpdateTenantActionButtonsVisibility()
+        {
+            bool hasSelection = dgvTenants != null && dgvTenants.SelectedRows.Count > 0;
+            if (btnEditTenant != null) btnEditTenant.Visible = hasSelection;
+            if (btnDeleteTenant != null) btnDeleteTenant.Visible = hasSelection;
+        }
+
+        // =====================================================================
+        //  ADD / EDIT
+        // =====================================================================
 
         private void OpenAddTenantDialog()
         {
+            tenantDialogIsEdit = false;
+            editingTenantId = null;
+            lblTenantDialogTitle.Text = "Add New Tenant";
+            btnTenantSave.Text = "CREATE TENANT";
+
             txtTenantName.Text = "";
             txtTenantEmail.Text = "";
             txtTenantPhone.Text = "";
-            pnlTenantDialog.Location = new Point(
-                (pnlMainContent.Width - pnlTenantDialog.Width) / 2,
-                (pnlMainContent.Height - pnlTenantDialog.Height) / 2);
+
             pnlTenantDialog.Visible = true;
             pnlTenantDialog.BringToFront();
+            LayoutTenantViews();
             txtTenantName.Focus();
         }
 
-        private void HandleSaveTenant()
+        private void HandleEditTenant()
         {
-            string name = txtTenantName.Text.Trim();
-            string email = txtTenantEmail.Text.Trim();
-            string phone = txtTenantPhone.Text.Trim();
+            if (dgvTenants == null || dgvTenants.SelectedRows.Count == 0) return;
 
-            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(email) || string.IsNullOrEmpty(phone))
+            int tenantId = Convert.ToInt32(dgvTenants.SelectedRows[0].Cells["colTenantId"].Value);
+            Tenant tenant = TenantService.GetById(tenantId);
+            if (tenant == null)
             {
-                MessageBox.Show("Please fill in all details.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("This tenant no longer exists.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ReloadTenantsGrid();
                 return;
             }
 
-            bool success = DatabaseHelper.AddTenant(name, email, phone);
-            if (success)
+            OpenEditTenantDialog(tenant);
+        }
+
+        private void OpenEditTenantDialog(Tenant tenant)
+        {
+            tenantDialogIsEdit = true;
+            editingTenantId = tenant.Id;
+            lblTenantDialogTitle.Text = "Edit Tenant";
+            btnTenantSave.Text = "SAVE CHANGES";
+
+            txtTenantName.Text = tenant.Name;
+            txtTenantEmail.Text = tenant.Email;
+            txtTenantPhone.Text = tenant.Phone;
+
+            pnlTenantDialog.Visible = true;
+            pnlTenantDialog.BringToFront();
+            LayoutTenantViews();
+            txtTenantName.Focus();
+        }
+
+        private void SaveTenant()
+        {
+            Tenant candidate = new Tenant
             {
-                pnlTenantDialog.Visible = false;
+                Id = editingTenantId ?? 0,
+                Name = txtTenantName.Text,
+                Email = txtTenantEmail.Text,
+                Phone = txtTenantPhone.Text
+            };
+
+            TenantResult result = tenantDialogIsEdit
+                ? TenantService.Update(candidate)
+                : TenantService.Create(candidate);
+
+            if (result.Success)
+            {
+                MessageBox.Show(result.Message, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                CloseTenantDialog();
                 ReloadTenantsGrid();
             }
             else
             {
-                MessageBox.Show("Could not add tenant. Please check if the email address already exists.", "Execution Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(result.Message, "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
+
+        private void CloseTenantDialog()
+        {
+            pnlTenantDialog.Visible = false;
+            editingTenantId = null;
+            tenantDialogIsEdit = false;
+            LayoutTenantViews();
+        }
+
+
+
+        // =====================================================================
+        //  DELETE
+        // =====================================================================
 
         private void HandleDeleteTenant()
         {
-            if (dgvTenants.SelectedRows.Count == 0) return;
+            if (dgvTenants == null || dgvTenants.SelectedRows.Count == 0) return;
 
-            string id = dgvTenants.SelectedRows[0].Cells["TenantID"].Value.ToString();
-            string name = dgvTenants.SelectedRows[0].Cells["TenantName"].Value.ToString();
+            int tenantId = Convert.ToInt32(dgvTenants.SelectedRows[0].Cells["colTenantId"].Value);
+            string name = Convert.ToString(dgvTenants.SelectedRows[0].Cells["colTenantName"].Value);
 
-            var res = MessageBox.Show($"Are you sure you want to delete tenant '{name}'? This will terminate all their active rental agreements.", "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            if (res == DialogResult.Yes)
+            DialogResult confirm = MessageBox.Show(
+                $"Are you sure you want to delete tenant '{name}'?\nThis action cannot be undone.",
+                "Confirm Delete",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (confirm != DialogResult.Yes) return;
+
+            TenantResult result = TenantService.Delete(tenantId);
+            if (result.Success)
             {
-                DatabaseHelper.DeleteTenant(id);
+                MessageBox.Show(result.Message, "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ReloadTenantsGrid();
+            }
+            else
+            {
+                MessageBox.Show(result.Message, "Cannot Delete", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
-        // --- Helper methods to hide views from other modules ---
+        // =====================================================================
+        //  SHARED HIDE HELPERS
+        //  Also used by other module views; kept here for the tenant module.
+        // =====================================================================
+
         private void HideDashboardDataView()
         {
             if (cardTotalHouses != null) cardTotalHouses.Visible = false;

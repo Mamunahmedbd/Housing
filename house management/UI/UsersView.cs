@@ -136,19 +136,19 @@ namespace house_management
             };
             pnlMainContent.Controls.Add(txtUserSearch);
 
-            btnResetUserPassword = CreateUserActionButton("🔑 Reset Password", Color.FromArgb(60, 80, 130), 430);
+            btnResetUserPassword = CreateUserActionButton("🔑 Reset", Color.FromArgb(60, 80, 130), 430, 95);
             btnResetUserPassword.Click += (s, e) => HandleResetUserPassword();
             pnlMainContent.Controls.Add(btnResetUserPassword);
 
-            btnDeleteUser = CreateUserActionButton("🗑 Delete Selected", deleteBtnColor, 600);
+            btnDeleteUser = CreateUserActionButton("🗑 Delete", deleteBtnColor, 535, 95);
             btnDeleteUser.Click += (s, e) => HandleDeleteUser();
             pnlMainContent.Controls.Add(btnDeleteUser);
 
-            btnEditUser = CreateUserActionButton("✎ Edit Selected", Color.FromArgb(70, 110, 90), 770);
+            btnEditUser = CreateUserActionButton("✎ Edit", Color.FromArgb(70, 110, 90), 640, 95);
             btnEditUser.Click += (s, e) => HandleEditUser();
             pnlMainContent.Controls.Add(btnEditUser);
 
-            btnAddUser = CreateUserActionButton("+ Add New User", buttonColor, 940);
+            btnAddUser = CreateUserActionButton("+ Add User", buttonColor, 745, 90);
             btnAddUser.Click += (s, e) => OpenAddUserDialog();
             pnlMainContent.Controls.Add(btnAddUser);
 
@@ -158,16 +158,16 @@ namespace house_management
             BuildResetPasswordDialog();
         }
 
-        private Button CreateUserActionButton(string text, Color backColor, int xLocation)
+        private Button CreateUserActionButton(string text, Color backColor, int xLocation, int width)
         {
             Button btn = new Button
             {
                 Text = text,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = backColor,
                 FlatStyle = FlatStyle.Flat,
-                Size = new Size(150, 40),
+                Size = new Size(width, 40),
                 Location = new Point(xLocation, 20),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 Cursor = Cursors.Hand,
@@ -184,13 +184,51 @@ namespace house_management
             return btn;
         }
 
+        private void LayoutUserViews()
+        {
+            if (pnlUserDialog == null || dgvUsers == null || pnlMainContent == null) return;
+
+            // Layout top row controls dynamically from the right edge
+            int rightEdge = pnlMainContent.Width - 25;
+            if (btnAddUser != null)
+            {
+                btnAddUser.Left = rightEdge - btnAddUser.Width;
+                if (btnEditUser != null)
+                {
+                    btnEditUser.Left = btnAddUser.Left - btnEditUser.Width - 15;
+                    if (btnDeleteUser != null)
+                    {
+                        btnDeleteUser.Left = btnEditUser.Left - btnDeleteUser.Width - 15;
+                        if (btnResetUserPassword != null)
+                        {
+                            btnResetUserPassword.Left = btnDeleteUser.Left - btnResetUserPassword.Width - 15;
+                        }
+                    }
+                }
+            }
+
+            if (pnlUserDialog.Visible)
+            {
+                pnlUserDialog.Width = 380;
+                pnlUserDialog.Height = pnlMainContent.Height - 115;
+                pnlUserDialog.Location = new Point(pnlMainContent.Width - 380 - 25, 90);
+                dgvUsers.Width = pnlMainContent.Width - 380 - 60;
+                try { pnlUserDialog.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, pnlUserDialog.Width, pnlUserDialog.Height, 15, 15)); } catch { }
+            }
+            else
+            {
+                dgvUsers.Width = pnlMainContent.Width - 50;
+            }
+            dgvUsers.Height = pnlMainContent.Height - 115;
+        }
+
         private void BuildUsersGrid()
         {
             dgvUsers = new DataGridView
             {
                 Size = new Size(800, 470),
                 Location = new Point(25, 90),
-                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left,
                 BorderStyle = BorderStyle.FixedSingle,
                 CellBorderStyle = DataGridViewCellBorderStyle.Single,
                 GridColor = Color.FromArgb(90, 70, 110),
@@ -246,7 +284,7 @@ namespace house_management
         {
             pnlUserDialog = new Panel
             {
-                Size = new Size(440, 560),
+                Size = new Size(380, 470),
                 BackColor = Color.FromArgb(35, 22, 48),
                 BorderStyle = BorderStyle.FixedSingle,
                 Visible = false
@@ -254,41 +292,39 @@ namespace house_management
             pnlMainContent.Controls.Add(pnlUserDialog);
             pnlMainContent.Resize += (s, e) =>
             {
-                pnlUserDialog.Location = new Point(
-                    (pnlMainContent.Width - pnlUserDialog.Width) / 2,
-                    (pnlMainContent.Height - pnlUserDialog.Height) / 2);
+                LayoutUserViews();
             };
 
             lblUserDialogTitle = new Label
             {
                 Text = "Add New User",
-                Font = new Font("Segoe UI", 15, FontStyle.Bold),
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(20, 15),
-                Size = new Size(400, 30),
+                Location = new Point(20, 20),
+                Size = new Size(300, 30),
                 TextAlign = ContentAlignment.MiddleLeft
             };
             pnlUserDialog.Controls.Add(lblUserDialogTitle);
 
-            Panel pnlUUsernameContainer = CreateModernTextBox("Username", 20, 60, 400, 45, "👤", false, out txtUUsername);
+            Panel pnlUUsernameContainer = CreateModernTextBox("Username", 20, 75, 340, 45, "👤", false, out txtUUsername);
             pnlUserDialog.Controls.Add(pnlUUsernameContainer);
 
-            Panel pnlUEmailContainer = CreateModernTextBox("Email Address", 20, 115, 400, 45, "✉", false, out txtUEmail);
+            Panel pnlUEmailContainer = CreateModernTextBox("Email Address", 20, 140, 340, 45, "✉", false, out txtUEmail);
             pnlUserDialog.Controls.Add(pnlUEmailContainer);
 
-            Panel pnlUFullNameContainer = CreateModernTextBox("Full Name (optional)", 20, 170, 400, 45, "🪪", false, out txtUFullName);
+            Panel pnlUFullNameContainer = CreateModernTextBox("Full Name (optional)", 20, 205, 160, 45, "🪪", false, out txtUFullName);
             pnlUserDialog.Controls.Add(pnlUFullNameContainer);
 
-            Panel pnlUPhoneContainer = CreateModernTextBox("Phone (optional)", 20, 225, 400, 45, "📞", false, out txtUPhone);
+            Panel pnlUPhoneContainer = CreateModernTextBox("Phone (optional)", 200, 205, 160, 45, "📞", false, out txtUPhone);
             pnlUserDialog.Controls.Add(pnlUPhoneContainer);
 
             Label lblRoleLabel = new Label
             {
                 Text = "Role",
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 ForeColor = Color.FromArgb(200, 190, 210),
-                Location = new Point(20, 280),
-                Size = new Size(400, 20)
+                Location = new Point(20, 270),
+                Size = new Size(160, 16)
             };
             pnlUserDialog.Controls.Add(lblRoleLabel);
 
@@ -296,9 +332,9 @@ namespace house_management
             {
                 BackColor = inputBgColor,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 11),
-                Location = new Point(20, 302),
-                Size = new Size(400, 35),
+                Font = new Font("Segoe UI", 10),
+                Location = new Point(20, 290),
+                Size = new Size(160, 30),
                 FlatStyle = FlatStyle.Flat,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
@@ -309,10 +345,10 @@ namespace house_management
             Label lblStatusLabel = new Label
             {
                 Text = "Status",
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 ForeColor = Color.FromArgb(200, 190, 210),
-                Location = new Point(20, 348),
-                Size = new Size(400, 20)
+                Location = new Point(200, 270),
+                Size = new Size(160, 16)
             };
             pnlUserDialog.Controls.Add(lblStatusLabel);
 
@@ -320,9 +356,9 @@ namespace house_management
             {
                 BackColor = inputBgColor,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 11),
-                Location = new Point(20, 370),
-                Size = new Size(400, 35),
+                Font = new Font("Segoe UI", 10),
+                Location = new Point(200, 290),
+                Size = new Size(160, 30),
                 FlatStyle = FlatStyle.Flat,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
@@ -333,14 +369,14 @@ namespace house_management
             lblUPasswordHint = new Label
             {
                 Text = "Password",
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
                 ForeColor = Color.FromArgb(200, 190, 210),
-                Location = new Point(20, 415),
-                Size = new Size(400, 20)
+                Location = new Point(20, 345),
+                Size = new Size(340, 16)
             };
             pnlUserDialog.Controls.Add(lblUPasswordHint);
 
-            pnlUPasswordContainer = CreateModernTextBox("Password", 20, 437, 400, 45, "🔒", true, out txtUPassword);
+            pnlUPasswordContainer = CreateModernTextBox("Password", 20, 365, 340, 45, "🔒", true, out txtUPassword);
             pnlUserDialog.Controls.Add(pnlUPasswordContainer);
 
             btnUSave = new Button
@@ -349,8 +385,8 @@ namespace house_management
                 BackColor = buttonColor,
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                Location = new Point(20, 500),
-                Size = new Size(190, 45),
+                Location = new Point(20, 430),
+                Size = new Size(160, 38),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
@@ -364,8 +400,8 @@ namespace house_management
                 BackColor = Color.FromArgb(70, 60, 80),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                Location = new Point(230, 500),
-                Size = new Size(190, 45),
+                Location = new Point(200, 430),
+                Size = new Size(160, 38),
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand
             };
@@ -551,6 +587,7 @@ namespace house_management
             btnAddUser.Visible = UserSession.IsAdmin;
             ReloadUsersGrid();
 
+            LayoutUserViews();
             UpdateUserActionButtonsVisibility();
         }
 
@@ -634,11 +671,9 @@ namespace house_management
             cmbURole.SelectedIndex = 2;
             cmbUStatus.SelectedIndex = 0;
 
-            pnlUserDialog.Location = new Point(
-                (pnlMainContent.Width - pnlUserDialog.Width) / 2,
-                (pnlMainContent.Height - pnlUserDialog.Height) / 2);
             pnlUserDialog.Visible = true;
             pnlUserDialog.BringToFront();
+            LayoutUserViews();
             txtUUsername.Focus();
         }
 
@@ -674,11 +709,9 @@ namespace house_management
             cmbURole.SelectedIndex = (int)user.Role;
             cmbUStatus.SelectedIndex = (int)user.Status;
 
-            pnlUserDialog.Location = new Point(
-                (pnlMainContent.Width - pnlUserDialog.Width) / 2,
-                (pnlMainContent.Height - pnlUserDialog.Height) / 2);
             pnlUserDialog.Visible = true;
             pnlUserDialog.BringToFront();
+            LayoutUserViews();
             txtUUsername.Focus();
         }
 
@@ -725,6 +758,7 @@ namespace house_management
             pnlUserDialog.Visible = false;
             editingUserId = null;
             userDialogIsEdit = false;
+            LayoutUserViews();
         }
 
         // =====================================================================
