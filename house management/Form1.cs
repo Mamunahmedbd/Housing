@@ -28,11 +28,40 @@ namespace house_management
         private Label lblWelcome;
         private TextBox txtEmail;
         private TextBox txtPassword;
+        private Panel pnlEmailContainer;
+        private Panel pnlPasswordContainer;
         private Button btnLogin;
-        private Button btnExit;
         private Label lblForgotPass;
         private Button btnTogglePassword;
         private bool isPasswordVisible = false;
+
+        // --- Window control box buttons ---
+        private Panel pnlControlBox;
+        private Button btnHeaderMinimize;
+        private Button btnHeaderExit;
+
+        // --- Dragging & Window APIs ---
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+        private static extern Int32 SendMessage(IntPtr hWnd, int msg, int wParam, [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.LPWStr)] string lParam);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ReleaseCapture();
+
+        private const int WM_NCLBUTTONDOWN = 0xA1;
+        private const int HT_CAPTION = 0x2;
+        private const int EM_SETCUEBANNER = 0x1501;
+
+        private void DragForm_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                ReleaseCapture();
+                SendMessage(this.Handle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
+            }
+        }
         // --- عناصر شاشة استعادة كلمة المرور ---
         private Panel pnlForgotPassDialog;
         private TextBox txtFPUsername;
@@ -87,13 +116,17 @@ namespace house_management
 
             InitializeComponent();
             SetupFormLayout();
-            // InitializeDefaultData is removed (handled by DatabaseHelper.InitializeDatabase)
+
+            // Allow dragging the form by clicking on the background
+            this.MouseDown += DragForm_MouseDown;
+
             BuildLoginUI();
             BuildForgotPasswordDialog();
             BuildDashboardUI();
             BuildMainContentArea();
             BuildDashboardCards();
             BuildAddHouseDialog();
+            BuildControlBox();
 
             pnlGlassCard.Visible = true;
             pnlSidebar.Visible = false;
@@ -112,24 +145,27 @@ namespace house_management
 
         private void BuildLoginUI()
         {
-            btnExit = new Button();
-            btnExit.Text = "✕";
-            btnExit.Font = new Font("Segoe UI", 14, FontStyle.Bold);
-            btnExit.ForeColor = Color.FromArgb(220, 220, 220);
-            btnExit.BackColor = Color.Transparent;
-            btnExit.FlatStyle = FlatStyle.Flat;
-            btnExit.FlatAppearance.BorderSize = 0;
-            btnExit.Size = new Size(40, 40);
-            btnExit.Location = new Point(this.Width - 50, 10);
-            btnExit.Cursor = Cursors.Hand;
-            btnExit.Click += (s, e) => Application.Exit();
-            this.Controls.Add(btnExit);
-
             pnlGlassCard = new Panel();
             pnlGlassCard.Size = new Size(430, 500);
             pnlGlassCard.Location = new Point((this.Width - pnlGlassCard.Width) / 2, (this.Height - pnlGlassCard.Height) / 2);
             pnlGlassCard.BackColor = cardColor;
+            pnlGlassCard.MouseDown += DragForm_MouseDown;
             this.Controls.Add(pnlGlassCard);
+
+            // Subtle glassmorphism border drawing
+            pnlGlassCard.Paint += (s, e) => {
+                using (Pen borderPen = new Pen(Color.FromArgb(40, 255, 255, 255), 1.5f))
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    Rectangle rect = pnlGlassCard.ClientRectangle;
+                    rect.Width -= 1;
+                    rect.Height -= 1;
+                    using (GraphicsPath path = GetRoundedRectPath(rect, 26))
+                    {
+                        e.Graphics.DrawPath(borderPen, path);
+                    }
+                }
+            };
 
             lblWelcome = new Label();
             lblWelcome.Text = "Welcome";
@@ -138,75 +174,14 @@ namespace house_management
             lblWelcome.Size = new Size(350, 60);
             lblWelcome.Location = new Point(40, 45);
             lblWelcome.TextAlign = ContentAlignment.MiddleCenter;
+            lblWelcome.MouseDown += DragForm_MouseDown;
             pnlGlassCard.Controls.Add(lblWelcome);
 
-            txtEmail = new TextBox();
-            txtEmail.Font = new Font("Segoe UI", 13, FontStyle.Bold);
-            txtEmail.BackColor = inputBgColor;
-            txtEmail.ForeColor = Color.DarkGray;
-            txtEmail.BorderStyle = BorderStyle.FixedSingle;
-            txtEmail.Size = new Size(350, 40);
-            txtEmail.Location = new Point(40, 160);
-            txtEmail.Text = "Username";
-            pnlGlassCard.Controls.Add(txtEmail);
+            pnlEmailContainer = CreateModernTextBox("Username", 40, 150, 350, 45, "👤", false, out txtEmail);
+            pnlGlassCard.Controls.Add(pnlEmailContainer);
 
-            txtEmail.Enter += (s, e) => {
-                if (txtEmail.Text == "Username")
-                {
-                    txtEmail.Text = "";
-                    txtEmail.ForeColor = Color.White;
-                }
-            };
-            txtEmail.Leave += (s, e) => {
-                if (string.IsNullOrWhiteSpace(txtEmail.Text))
-                {
-                    txtEmail.Text = "Username";
-                    txtEmail.ForeColor = Color.DarkGray;
-                }
-            };
-
-            txtPassword = new TextBox();
-            txtPassword.Font = new Font("Segoe UI", 13, FontStyle.Bold);
-            txtPassword.BackColor = inputBgColor;
-            txtPassword.ForeColor = Color.DarkGray;
-            txtPassword.BorderStyle = BorderStyle.FixedSingle;
-            txtPassword.Size = new Size(350, 40);
-            txtPassword.Location = new Point(40, 235);
-            txtPassword.Text = "Password";
-            pnlGlassCard.Controls.Add(txtPassword);
-
-            txtPassword.Enter += (s, e) => {
-                if (txtPassword.Text == "Password")
-                {
-                    txtPassword.Text = "";
-                    txtPassword.ForeColor = Color.White;
-                    txtPassword.PasswordChar = isPasswordVisible ? '\0' : '●';
-                }
-            };
-            txtPassword.Leave += (s, e) => {
-                if (string.IsNullOrWhiteSpace(txtPassword.Text))
-                {
-                    txtPassword.Text = "Password";
-                    txtPassword.ForeColor = Color.DarkGray;
-                    txtPassword.PasswordChar = '\0';
-                    isPasswordVisible = false;
-                    if (btnTogglePassword != null) btnTogglePassword.Text = "👁";
-                }
-            };
-
-            btnLogin = new Button();
-            btnLogin.Text = "LOGIN";
-            btnLogin.Font = new Font("Segoe UI", 14, FontStyle.Bold);
-            btnLogin.ForeColor = Color.White;
-            btnLogin.BackColor = buttonColor;
-            btnLogin.FlatStyle = FlatStyle.Flat;
-            btnLogin.FlatAppearance.BorderSize = 0;
-            btnLogin.Size = new Size(350, 50);
-            btnLogin.Location = new Point(40, 325);
-            btnLogin.Cursor = Cursors.Hand;
-            pnlGlassCard.Controls.Add(btnLogin);
-            // allow Enter key to trigger login
-            this.AcceptButton = btnLogin;
+            pnlPasswordContainer = CreateModernTextBox("Password", 40, 220, 350, 45, "🔒", true, out txtPassword);
+            pnlGlassCard.Controls.Add(pnlPasswordContainer);
 
             // password visibility toggle button (image-based)
             btnTogglePassword = new Button();
@@ -216,11 +191,9 @@ namespace house_management
             btnTogglePassword.FlatAppearance.BorderSize = 0;
             btnTogglePassword.BackColor = Color.Transparent;
             btnTogglePassword.Cursor = Cursors.Hand;
-            // position on top of txtPassword (right side)
-            btnTogglePassword.Location = new Point(txtPassword.Right - btnTogglePassword.Width - 6, txtPassword.Top + 6);
+            btnTogglePassword.Location = new Point(pnlPasswordContainer.Width - btnTogglePassword.Width - 8, (pnlPasswordContainer.Height - btnTogglePassword.Height) / 2);
             btnTogglePassword.ImageAlign = ContentAlignment.MiddleCenter;
             btnTogglePassword.Click += (s, e) => {
-                if (txtPassword.Text == "Password") return;
                 isPasswordVisible = !isPasswordVisible;
                 if (isPasswordVisible)
                 {
@@ -233,9 +206,27 @@ namespace house_management
                     btnTogglePassword.Image = CreateEyeBitmap(false);
                 }
             };
-            // initial icon (closed)
             btnTogglePassword.Image = CreateEyeBitmap(false);
-            pnlGlassCard.Controls.Add(btnTogglePassword);
+            pnlPasswordContainer.Controls.Add(btnTogglePassword);
+
+            btnLogin = new Button();
+            btnLogin.Text = "LOGIN";
+            btnLogin.Font = new Font("Segoe UI", 14, FontStyle.Bold);
+            btnLogin.ForeColor = Color.White;
+            btnLogin.BackColor = buttonColor;
+            btnLogin.FlatStyle = FlatStyle.Flat;
+            btnLogin.FlatAppearance.BorderSize = 0;
+            btnLogin.Size = new Size(350, 50);
+            btnLogin.Location = new Point(40, 305);
+            btnLogin.Cursor = Cursors.Hand;
+            pnlGlassCard.Controls.Add(btnLogin);
+
+            // Hover styling for Login button
+            btnLogin.MouseEnter += (s, e) => btnLogin.BackColor = Color.FromArgb(240, 65, 115);
+            btnLogin.MouseLeave += (s, e) => btnLogin.BackColor = buttonColor;
+
+            // allow Enter key to trigger login
+            this.AcceptButton = btnLogin;
 
             btnLogin.Click += async (s, e) => {
                 // visual feedback
@@ -252,6 +243,7 @@ namespace house_management
                     pnlSidebar.Visible = true;
                     pnlHeader.Visible = true;
                     pnlMainContent.Visible = true;
+                    pnlControlBox.BringToFront(); // Keep control box on top of the dashboard panels
                     ShowDashboardData();
                 }
                 else
@@ -267,7 +259,7 @@ namespace house_management
             lblForgotPass.Font = new Font("Segoe UI", 10, FontStyle.Bold);
             lblForgotPass.ForeColor = Color.FromArgb(200, 190, 210);
             lblForgotPass.Size = new Size(160, 25);
-            lblForgotPass.Location = new Point(40, 405);
+            lblForgotPass.Location = new Point(40, 385);
             lblForgotPass.Cursor = Cursors.Hand;
             lblForgotPass.Click += (s, e) => {
                 if (pnlForgotPassDialog != null)
@@ -278,6 +270,17 @@ namespace house_management
                     txtFPUsername.Focus();
                 }
             };
+
+            // Forgot Password hover animation
+            lblForgotPass.MouseEnter += (s, e) => {
+                lblForgotPass.ForeColor = Color.White;
+                lblForgotPass.Font = new Font(lblForgotPass.Font, FontStyle.Bold | FontStyle.Underline);
+            };
+            lblForgotPass.MouseLeave += (s, e) => {
+                lblForgotPass.ForeColor = Color.FromArgb(200, 190, 210);
+                lblForgotPass.Font = new Font(lblForgotPass.Font, FontStyle.Bold);
+            };
+
             pnlGlassCard.Controls.Add(lblForgotPass);
 
             ApplySafeRoundedCorners();
@@ -289,6 +292,7 @@ namespace house_management
             pnlSidebar.Size = new Size(240, this.Height);
             pnlSidebar.Location = new Point(0, 0);
             pnlSidebar.BackColor = sidebarBg;
+            pnlSidebar.MouseDown += DragForm_MouseDown;
             this.Controls.Add(pnlSidebar);
 
             lblAppTitle = new Label();
@@ -297,6 +301,7 @@ namespace house_management
             lblAppTitle.ForeColor = Color.White;
             lblAppTitle.Location = new Point(20, 30);
             lblAppTitle.Size = new Size(200, 40);
+            lblAppTitle.MouseDown += DragForm_MouseDown;
             pnlSidebar.Controls.Add(lblAppTitle);
 
             btnDashboard = CreateSidebarButton("Dashboard", 120);
@@ -314,11 +319,9 @@ namespace house_management
                 pnlHeader.Visible = false;
                 pnlMainContent.Visible = false;
                 pnlGlassCard.Visible = true;
-                txtEmail.Text = "Username";
-                txtEmail.ForeColor = Color.DarkGray;
-                txtPassword.Text = "Password";
-                txtPassword.ForeColor = Color.DarkGray;
-                txtPassword.PasswordChar = '\0';
+                pnlControlBox.BringToFront(); // Ensure control box remains visible on the login page
+                txtEmail.Text = "";
+                txtPassword.Text = "";
                 if (btnLogin != null) { btnLogin.Enabled = true; btnLogin.Text = "LOGIN"; }
             };
             pnlSidebar.Controls.Add(btnLogout);
@@ -327,6 +330,7 @@ namespace house_management
             pnlHeader.Size = new Size(this.Width - 240, 80);
             pnlHeader.Location = new Point(240, 0);
             pnlHeader.BackColor = Color.FromArgb(26, 16, 36);
+            pnlHeader.MouseDown += DragForm_MouseDown;
             this.Controls.Add(pnlHeader);
 
             lblWelcomeUser = new Label();
@@ -335,6 +339,7 @@ namespace house_management
             lblWelcomeUser.ForeColor = Color.White;
             lblWelcomeUser.Location = new Point(20, 25);
             lblWelcomeUser.Size = new Size(300, 30);
+            lblWelcomeUser.MouseDown += DragForm_MouseDown;
             pnlHeader.Controls.Add(lblWelcomeUser);
         }
 
@@ -835,6 +840,153 @@ namespace house_management
             {
                 e.Graphics.FillRectangle(dualBrush, this.ClientRectangle);
             }
+        }
+
+        // --- CUSTOM HELPERS ---
+
+        private Panel CreateModernTextBox(string placeholder, int x, int y, int width, int height, string iconText, bool isPassword, out TextBox targetTextBox)
+        {
+            Panel container = new Panel();
+            container.Size = new Size(width, height);
+            container.Location = new Point(x, y);
+            container.BackColor = inputBgColor;
+
+            TextBox textBox = new TextBox();
+            TextBox localTextBox = textBox;
+
+            Label lblIcon = new Label();
+            lblIcon.Text = iconText;
+            lblIcon.ForeColor = Color.FromArgb(200, 190, 210);
+            lblIcon.Font = new Font("Segoe UI", 12);
+            lblIcon.AutoSize = true;
+            lblIcon.Location = new Point(12, (height - lblIcon.PreferredHeight) / 2);
+            lblIcon.MouseDown += (s, e) => { if (localTextBox != null) localTextBox.Focus(); };
+            container.Controls.Add(lblIcon);
+
+            textBox.BorderStyle = BorderStyle.None;
+            textBox.BackColor = inputBgColor;
+            textBox.ForeColor = Color.White;
+            textBox.Font = new Font("Segoe UI", 12);
+
+            if (isPassword)
+            {
+                textBox.PasswordChar = '●';
+            }
+
+            // Dynamic padding based on the icon size to prevent overlap/clipping
+            int textLeft = lblIcon.Right + 8;
+            if (textLeft < 40) textLeft = 40;
+
+            int textWidth = width - textLeft - 12;
+            if (isPassword)
+            {
+                textWidth -= 32; // Leave space for eye toggle button
+            }
+            textBox.Location = new Point(textLeft, (height - textBox.PreferredHeight) / 2);
+            textBox.Width = textWidth;
+
+            container.Controls.Add(textBox);
+            targetTextBox = textBox;
+
+            // Set native placeholder cue banner
+            textBox.HandleCreated += (s, e) => {
+                SendMessage(textBox.Handle, EM_SETCUEBANNER, 1, placeholder);
+            };
+
+            Color currentBorderColor = Color.FromArgb(60, 90, 70, 110);
+
+            container.Paint += (s, e) => {
+                using (Pen pen = new Pen(currentBorderColor, 1.5f))
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    Rectangle rect = container.ClientRectangle;
+                    rect.Width -= 1;
+                    rect.Height -= 1;
+                    using (GraphicsPath path = GetRoundedRectPath(rect, 8))
+                    {
+                        e.Graphics.DrawPath(pen, path);
+                    }
+                }
+            };
+
+            textBox.Enter += (s, e) => {
+                currentBorderColor = buttonColor;
+                container.Invalidate();
+            };
+
+            textBox.Leave += (s, e) => {
+                currentBorderColor = Color.FromArgb(60, 90, 70, 110);
+                container.Invalidate();
+            };
+
+            try { container.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, container.Width, container.Height, 8, 8)); } catch { }
+            return container;
+        }
+
+        private void BuildControlBox()
+        {
+            pnlControlBox = new Panel();
+            pnlControlBox.Size = new Size(90, 40);
+            pnlControlBox.Location = new Point(this.Width - pnlControlBox.Width, 0);
+            pnlControlBox.BackColor = Color.Transparent;
+
+            btnHeaderMinimize = new Button();
+            btnHeaderMinimize.Text = "─";
+            btnHeaderMinimize.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            btnHeaderMinimize.ForeColor = Color.FromArgb(200, 190, 210);
+            btnHeaderMinimize.BackColor = Color.Transparent;
+            btnHeaderMinimize.FlatStyle = FlatStyle.Flat;
+            btnHeaderMinimize.FlatAppearance.BorderSize = 0;
+            btnHeaderMinimize.Size = new Size(45, 40);
+            btnHeaderMinimize.Location = new Point(0, 0);
+            btnHeaderMinimize.Cursor = Cursors.Hand;
+            btnHeaderMinimize.Click += (s, e) => this.WindowState = FormWindowState.Minimized;
+            btnHeaderMinimize.MouseEnter += (s, e) => {
+                btnHeaderMinimize.BackColor = Color.FromArgb(40, 255, 255, 255);
+                btnHeaderMinimize.ForeColor = Color.White;
+            };
+            btnHeaderMinimize.MouseLeave += (s, e) => {
+                btnHeaderMinimize.BackColor = Color.Transparent;
+                btnHeaderMinimize.ForeColor = Color.FromArgb(200, 190, 210);
+            };
+
+            btnHeaderExit = new Button();
+            btnHeaderExit.Text = "✕";
+            btnHeaderExit.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            btnHeaderExit.ForeColor = Color.FromArgb(200, 190, 210);
+            btnHeaderExit.BackColor = Color.Transparent;
+            btnHeaderExit.FlatStyle = FlatStyle.Flat;
+            btnHeaderExit.FlatAppearance.BorderSize = 0;
+            btnHeaderExit.Size = new Size(45, 40);
+            btnHeaderExit.Location = new Point(45, 0);
+            btnHeaderExit.Cursor = Cursors.Hand;
+            btnHeaderExit.Click += (s, e) => Application.Exit();
+            btnHeaderExit.MouseEnter += (s, e) => {
+                btnHeaderExit.BackColor = Color.FromArgb(230, 45, 80);
+                btnHeaderExit.ForeColor = Color.White;
+            };
+            btnHeaderExit.MouseLeave += (s, e) => {
+                btnHeaderExit.BackColor = Color.Transparent;
+                btnHeaderExit.ForeColor = Color.FromArgb(200, 190, 210);
+            };
+
+            pnlControlBox.Controls.Add(btnHeaderMinimize);
+            pnlControlBox.Controls.Add(btnHeaderExit);
+            this.Controls.Add(pnlControlBox);
+            pnlControlBox.BringToFront();
+        }
+
+        private GraphicsPath GetRoundedRectPath(Rectangle rect, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            float diameter = radius * 2f;
+            path.StartFigure();
+            path.AddArc(rect.X, rect.Y, diameter, diameter, 180, 90);
+            path.AddArc(rect.Right - diameter, rect.Y, diameter, diameter, 270, 90);
+            path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
         }
     }
 

@@ -4,7 +4,7 @@
 -- Description: Encapsulates CRUD operations and login checks inside the database
 -- ============================================================================
 
-USE [HousingDb];
+USE [HousingRental];
 GO
 
 -- ----------------------------------------------------------------------------

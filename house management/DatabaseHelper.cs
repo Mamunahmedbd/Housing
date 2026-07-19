@@ -14,14 +14,14 @@ namespace house_management
         static DatabaseHelper()
         {
             // Retrieve connection string from App.config or fall back to localdb default
-            var connSetting = ConfigurationManager.ConnectionStrings["HousingDb"];
+            var connSetting = ConfigurationManager.ConnectionStrings["HousingRental"] ?? ConfigurationManager.ConnectionStrings["HousingDb"];
             if (connSetting != null)
             {
                 connectionString = connSetting.ConnectionString;
             }
             else
             {
-                connectionString = @"Server=(localdb)\MSSQLLocalDB;Database=HousingDb;Integrated Security=True;";
+                connectionString = @"Server=(localdb)\MSSQLLocalDB;Database=HousingRental;Integrated Security=True;";
             }
 
             // Construct connection string for master database to handle database creation
@@ -41,13 +41,13 @@ namespace house_management
             using (SqlConnection masterConn = new SqlConnection(masterConnectionString))
             {
                 masterConn.Open();
-                string checkDbQuery = "SELECT database_id FROM sys.databases WHERE name = 'HousingDb'";
+                string checkDbQuery = "SELECT database_id FROM sys.databases WHERE name = 'HousingRental'";
                 using (SqlCommand checkCmd = new SqlCommand(checkDbQuery, masterConn))
                 {
                     object result = checkCmd.ExecuteScalar();
                     if (result == null)
                     {
-                        string createDbQuery = "CREATE DATABASE HousingDb";
+                        string createDbQuery = "CREATE DATABASE HousingRental";
                         using (SqlCommand createCmd = new SqlCommand(createDbQuery, masterConn))
                         {
                             createCmd.ExecuteNonQuery();
@@ -56,7 +56,7 @@ namespace house_management
                 }
             }
 
-            // 2. Connect to the HousingDb database and ensure tables exist with initial seeding
+            // 2. Connect to the HousingRental database and ensure tables exist with initial seeding
             using (SqlConnection dbConn = new SqlConnection(connectionString))
             {
                 dbConn.Open();
