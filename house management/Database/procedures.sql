@@ -99,3 +99,119 @@ BEGIN
      WHERE [id] = @id;
 END;
 GO
+
+-- ----------------------------------------------------------------------------
+-- 5. PROCEDURE: sp_GetUsers
+-- Description: Retrieves users, optionally filtered by username/email/full_name
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('[dbo].[sp_GetUsers]', 'P') IS NOT NULL
+    DROP PROCEDURE [dbo].[sp_GetUsers];
+GO
+
+CREATE PROCEDURE [dbo].[sp_GetUsers]
+    @searchKeyword NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @searchKeyword IS NULL OR LTRIM(RTRIM(@searchKeyword)) = ''
+    BEGIN
+        SELECT [id], [username], [email], [password_hash], [full_name], [phone],
+               [role], [status], [created_at], [updated_at], [last_login]
+          FROM [dbo].[Users]
+         ORDER BY [id] ASC;
+    END
+    ELSE
+    BEGIN
+        SELECT [id], [username], [email], [password_hash], [full_name], [phone],
+               [role], [status], [created_at], [updated_at], [last_login]
+          FROM [dbo].[Users]
+         WHERE [username]  LIKE '%' + LTRIM(RTRIM(@searchKeyword)) + '%'
+            OR [email]     LIKE '%' + LTRIM(RTRIM(@searchKeyword)) + '%'
+            OR [full_name] LIKE '%' + LTRIM(RTRIM(@searchKeyword)) + '%'
+         ORDER BY [id] ASC;
+    END
+END;
+GO
+
+-- ----------------------------------------------------------------------------
+-- 6. PROCEDURE: sp_CreateUser
+-- Description: Creates a new user and returns the new identity id
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('[dbo].[sp_CreateUser]', 'P') IS NOT NULL
+    DROP PROCEDURE [dbo].[sp_CreateUser];
+GO
+
+CREATE PROCEDURE [dbo].[sp_CreateUser]
+    @username      NVARCHAR(50),
+    @email         NVARCHAR(100),
+    @passwordHash  NVARCHAR(255),
+    @fullName      NVARCHAR(100) = NULL,
+    @phone         NVARCHAR(30)  = NULL,
+    @role          INT = 2,
+    @status        INT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO [dbo].[Users] ([username], [email], [password_hash], [full_name], [phone], [role], [status])
+    VALUES (@username, @email, @passwordHash, @fullName, @phone, @role, @status);
+
+    SELECT CAST(SCOPE_IDENTITY() AS INT) AS [NewId];
+END;
+GO
+
+-- ----------------------------------------------------------------------------
+-- 7. PROCEDURE: sp_UpdateUser
+-- Description: Updates an existing user's profile / role / status
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('[dbo].[sp_UpdateUser]', 'P') IS NOT NULL
+    DROP PROCEDURE [dbo].[sp_UpdateUser];
+GO
+
+CREATE PROCEDURE [dbo].[sp_UpdateUser]
+    @id       INT,
+    @username NVARCHAR(50),
+    @email    NVARCHAR(100),
+    @fullName NVARCHAR(100) = NULL,
+    @phone    NVARCHAR(30)  = NULL,
+    @role     INT,
+    @status   INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE [dbo].[Users]
+       SET [username]  = @username,
+           [email]     = @email,
+           [full_name] = @fullName,
+           [phone]     = @phone,
+           [role]      = @role,
+           [status]    = @status,
+           [updated_at] = GETDATE()
+     WHERE [id] = @id;
+END;
+GO
+
+-- ----------------------------------------------------------------------------
+-- 8. PROCEDURE: sp_ChangeUserPassword
+-- Description: Replaces the password hash for a user (used by Change Password
+--              and Admin Reset Password features)
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('[dbo].[sp_ChangeUserPassword]', 'P') IS NOT NULL
+    DROP PROCEDURE [dbo].[sp_ChangeUserPassword];
+GO
+
+CREATE PROCEDURE [dbo].[sp_ChangeUserPassword]
+    @id           INT,
+    @passwordHash NVARCHAR(255)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE [dbo].[Users]
+       SET [password_hash] = @passwordHash,
+           [updated_at]    = GETDATE()
+     WHERE [id] = @id;
+END;
+GO

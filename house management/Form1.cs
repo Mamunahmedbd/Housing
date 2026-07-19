@@ -38,6 +38,7 @@ namespace house_management
         // --- Window control box buttons ---
         private Panel pnlControlBox;
         private Button btnHeaderMinimize;
+        private Button btnHeaderMaximize;
         private Button btnHeaderExit;
 
         // --- Dragging & Window APIs ---
@@ -75,8 +76,12 @@ namespace house_management
         private Label lblAppTitle;
         private Button btnDashboard;
         private Button btnHouses;
+        private Button btnTenants;
+        private Button btnRentals;
+        private Button btnUsers;
         private Button btnLogout;
         private Label lblWelcomeUser;
+        private Panel pnlActiveIndicator;
 
         // --- حاوية المحتوى الرئيسية والجدول والبحث ---
         private Panel pnlMainContent;
@@ -132,6 +137,15 @@ namespace house_management
             pnlSidebar.Visible = false;
             pnlHeader.Visible = false;
             pnlMainContent.Visible = false;
+
+            // Build user-module UI (sidebar button + users grid + dialogs).
+            BuildUsersSidebar();
+            BuildUsersView();
+            BuildTenantsView();
+            BuildRentalsView();
+
+            // Keep the welcome banner in sync with whoever is logged in.
+            Models.UserSession.OnSessionChanged += (s, e) => UpdateWelcomeBanner();
         }
 
         private void SetupFormLayout()
@@ -139,6 +153,7 @@ namespace house_management
             this.Size = new Size(1100, 700);
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition = FormStartPosition.CenterScreen;
+            this.ResizeRedraw = true;
         }
 
         // InitializeDefaultData was removed as initialization and seeding are done via DatabaseHelper.
@@ -235,10 +250,18 @@ namespace house_management
                 btnLogin.Text = "Logging in...";
 
                 // simulate processing (replace with real auth call)
-                await Task.Delay(700);
+                await Task.Delay(400);
 
-                if (DatabaseHelper.ValidateUser(txtEmail.Text, txtPassword.Text))
+                string loginInput = txtEmail.Text;
+                string passwordInput = txtPassword.Text;
+
+                var authResult = Services.UserService.Authenticate(loginInput, passwordInput);
+
+                if (authResult.Success)
                 {
+                    Models.UserSession.SignIn(authResult.User);
+                    UpdateWelcomeBanner();
+
                     pnlGlassCard.Visible = false;
                     pnlSidebar.Visible = true;
                     pnlHeader.Visible = true;
@@ -248,7 +271,7 @@ namespace house_management
                 }
                 else
                 {
-                    MessageBox.Show("خطأ في اسم المستخدم أو كلمة المرور!", "خطأ في الدخول", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(authResult.Message, "Login Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     btnLogin.Enabled = true;
                     btnLogin.Text = originalText;
                 }
@@ -292,6 +315,7 @@ namespace house_management
             pnlSidebar.Size = new Size(240, this.Height);
             pnlSidebar.Location = new Point(0, 0);
             pnlSidebar.BackColor = sidebarBg;
+            pnlSidebar.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
             pnlSidebar.MouseDown += DragForm_MouseDown;
             this.Controls.Add(pnlSidebar);
 
@@ -304,21 +328,41 @@ namespace house_management
             lblAppTitle.MouseDown += DragForm_MouseDown;
             pnlSidebar.Controls.Add(lblAppTitle);
 
-            btnDashboard = CreateSidebarButton("Dashboard", 120);
-            btnHouses = CreateSidebarButton("Manage Houses", 180);
+            // Active indicator bar
+            pnlActiveIndicator = new Panel();
+            pnlActiveIndicator.Size = new Size(6, 45);
+            pnlActiveIndicator.BackColor = activeBtnColor;
+            pnlActiveIndicator.Visible = false;
+            pnlSidebar.Controls.Add(pnlActiveIndicator);
+
+            btnDashboard = CreateSidebarButton("📊  Dashboard", 120);
+            btnHouses = CreateSidebarButton("🏠  House", 175);
+            btnTenants = CreateSidebarButton("👥  Tenant Users", 230);
+            btnRentals = CreateSidebarButton("🔑  Rental", 285);
+            btnUsers = CreateSidebarButton("👤  Users", 340);
+
             pnlSidebar.Controls.Add(btnDashboard);
             pnlSidebar.Controls.Add(btnHouses);
+            pnlSidebar.Controls.Add(btnTenants);
+            pnlSidebar.Controls.Add(btnRentals);
+            pnlSidebar.Controls.Add(btnUsers);
 
             btnDashboard.Click += (s, e) => ShowDashboardData();
             btnHouses.Click += (s, e) => ShowHousesGrid();
+            btnTenants.Click += (s, e) => ShowTenantsGrid();
+            btnRentals.Click += (s, e) => ShowRentalsGrid();
+            btnUsers.Click += (s, e) => ShowUsersGrid();
 
-            btnLogout = CreateSidebarButton("Logout", this.Height - 70);
+            btnLogout = CreateSidebarButton("🚪  Logout", this.Height - 70);
             btnLogout.BackColor = Color.FromArgb(105, 30, 75);
+            btnLogout.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnLogout.Click += (s, e) => {
+                Models.UserSession.SignOut();
                 pnlSidebar.Visible = false;
                 pnlHeader.Visible = false;
                 pnlMainContent.Visible = false;
                 pnlGlassCard.Visible = true;
+                pnlActiveIndicator.Visible = false;
                 pnlControlBox.BringToFront(); // Ensure control box remains visible on the login page
                 txtEmail.Text = "";
                 txtPassword.Text = "";
@@ -330,17 +374,27 @@ namespace house_management
             pnlHeader.Size = new Size(this.Width - 240, 80);
             pnlHeader.Location = new Point(240, 0);
             pnlHeader.BackColor = Color.FromArgb(26, 16, 36);
+            pnlHeader.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             pnlHeader.MouseDown += DragForm_MouseDown;
             this.Controls.Add(pnlHeader);
 
             lblWelcomeUser = new Label();
             lblWelcomeUser.Text = "Welcome Back, Admin";
-            lblWelcomeUser.Font = new Font("Segoe UI", 14, FontStyle.Bold);
+            lblWelcomeUser.Font = new Font("Segoe UI", 13, FontStyle.Bold);
             lblWelcomeUser.ForeColor = Color.White;
-            lblWelcomeUser.Location = new Point(20, 25);
-            lblWelcomeUser.Size = new Size(300, 30);
+            lblWelcomeUser.Location = new Point(20, 15);
+            lblWelcomeUser.Size = new Size(300, 25);
             lblWelcomeUser.MouseDown += DragForm_MouseDown;
             pnlHeader.Controls.Add(lblWelcomeUser);
+
+            Label lblUserRole = new Label();
+            lblUserRole.Text = "System Administrator";
+            lblUserRole.Font = new Font("Segoe UI", 9, FontStyle.Regular);
+            lblUserRole.ForeColor = Color.FromArgb(160, 150, 180);
+            lblUserRole.Location = new Point(20, 42);
+            lblUserRole.Size = new Size(300, 20);
+            lblUserRole.MouseDown += DragForm_MouseDown;
+            pnlHeader.Controls.Add(lblUserRole);
         }
 
         private void BuildMainContentArea()
@@ -349,6 +403,7 @@ namespace house_management
             pnlMainContent.Size = new Size(860, 620);
             pnlMainContent.Location = new Point(240, 80);
             pnlMainContent.BackColor = Color.Transparent;
+            pnlMainContent.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             this.Controls.Add(pnlMainContent);
 
             lblSectionTitle = new Label();
@@ -356,6 +411,7 @@ namespace house_management
             lblSectionTitle.ForeColor = Color.White;
             lblSectionTitle.Location = new Point(25, 25);
             lblSectionTitle.Size = new Size(190, 35);
+            lblSectionTitle.Anchor = AnchorStyles.Top | AnchorStyles.Left;
             pnlMainContent.Controls.Add(lblSectionTitle);
 
             // مربع البحث الاحترافي - تم نقله وضبط أبعاده لمنع التداخل تماماً
@@ -368,6 +424,7 @@ namespace house_management
             txtSearch.BorderStyle = BorderStyle.FixedSingle;
             txtSearch.Size = new Size(200, 40);
             txtSearch.Location = new Point(230, 20);
+            txtSearch.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             txtSearch.Visible = false;
 
             txtSearch.TextChanged += (s, e) => {
@@ -405,6 +462,7 @@ namespace house_management
             btnDeleteHouse.FlatAppearance.BorderSize = 0;
             btnDeleteHouse.Size = new Size(200, 40);
             btnDeleteHouse.Location = new Point(450, 20);
+            btnDeleteHouse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnDeleteHouse.Cursor = Cursors.Hand;
             btnDeleteHouse.Visible = false;
 
@@ -423,6 +481,7 @@ namespace house_management
             btnAddHouse.FlatAppearance.BorderSize = 0;
             btnAddHouse.Size = new Size(160, 40);
             btnAddHouse.Location = new Point(670, 20);
+            btnAddHouse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnAddHouse.Cursor = Cursors.Hand;
             btnAddHouse.Click += (s, e) => { pnlAddHouseDialog.Visible = true; pnlAddHouseDialog.BringToFront(); };
             pnlMainContent.Controls.Add(btnAddHouse);
@@ -431,6 +490,7 @@ namespace house_management
             dgvHouses = new DataGridView();
             dgvHouses.Size = new Size(800, 470);
             dgvHouses.Location = new Point(25, 90);
+            dgvHouses.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dgvHouses.BorderStyle = BorderStyle.FixedSingle;
             dgvHouses.CellBorderStyle = DataGridViewCellBorderStyle.Single;
             dgvHouses.GridColor = Color.FromArgb(90, 70, 110);
@@ -516,28 +576,49 @@ namespace house_management
             int cardHeight = 130;
             int topPos = 110;
 
-            cardTotalHouses = CreateStatCard("Total Houses", Color.FromArgb(45, 30, 60), 25, topPos, cardWidth, cardHeight, out lblTotalValue);
-            cardAvailableHouses = CreateStatCard("Available Houses", Color.FromArgb(25, 50, 45), 295, topPos, cardWidth, cardHeight, out lblAvailableValue);
-            cardRentedHouses = CreateStatCard("Rented Houses", Color.FromArgb(65, 25, 45), 565, topPos, cardWidth, cardHeight, out lblRentedValue);
+            cardTotalHouses = CreateStatCard("Total Houses", Color.FromArgb(45, 30, 60), "🏠", 25, topPos, cardWidth, cardHeight, out lblTotalValue);
+            cardAvailableHouses = CreateStatCard("Available Houses", Color.FromArgb(25, 50, 45), "🔑", 295, topPos, cardWidth, cardHeight, out lblAvailableValue);
+            cardRentedHouses = CreateStatCard("Rented Houses", Color.FromArgb(65, 25, 45), "📋", 565, topPos, cardWidth, cardHeight, out lblRentedValue);
 
             pnlMainContent.Controls.Add(cardTotalHouses);
             pnlMainContent.Controls.Add(cardAvailableHouses);
             pnlMainContent.Controls.Add(cardRentedHouses);
+
+            // Dynamically space cards on resize to be fully responsive
+            pnlMainContent.Resize += (s, e) => {
+                if (cardTotalHouses != null && cardTotalHouses.Visible)
+                {
+                    int totalWidth = pnlMainContent.Width;
+                    int cardW = cardTotalHouses.Width;
+                    int gap = (totalWidth - (cardW * 3)) / 4;
+                    if (gap < 15) gap = 15;
+
+                    cardTotalHouses.Location = new Point(gap, cardTotalHouses.Top);
+                    cardTotalHouses.Tag = cardTotalHouses.Top; // Keep tag updated
+
+                    cardAvailableHouses.Location = new Point(gap * 2 + cardW, cardAvailableHouses.Top);
+                    cardAvailableHouses.Tag = cardAvailableHouses.Top;
+
+                    cardRentedHouses.Location = new Point(gap * 3 + cardW * 2, cardRentedHouses.Top);
+                    cardRentedHouses.Tag = cardRentedHouses.Top;
+                }
+            };
         }
 
-        private Panel CreateStatCard(string title, Color bgColor, int x, int y, int w, int h, out Label valueLabel)
+        private Panel CreateStatCard(string title, Color bgColor, string iconText, int x, int y, int w, int h, out Label valueLabel)
         {
             Panel card = new Panel();
             card.Size = new Size(w, h);
             card.Location = new Point(x, y);
             card.BackColor = bgColor;
+            card.Tag = y; // Save original Y position for lift animation
 
             Label lblTitle = new Label();
             lblTitle.Text = title;
             lblTitle.Font = new Font("Segoe UI", 12, FontStyle.Bold);
             lblTitle.ForeColor = Color.FromArgb(220, 220, 220);
             lblTitle.Location = new Point(15, 20);
-            lblTitle.Size = new Size(200, 30);
+            lblTitle.Size = new Size(180, 30);
             card.Controls.Add(lblTitle);
 
             valueLabel = new Label();
@@ -545,8 +626,56 @@ namespace house_management
             valueLabel.Font = new Font("Segoe UI", 28, FontStyle.Bold);
             valueLabel.ForeColor = Color.White;
             valueLabel.Location = new Point(15, 55);
-            valueLabel.Size = new Size(150, 55);
+            valueLabel.Size = new Size(130, 55);
             card.Controls.Add(valueLabel);
+
+            Label lblIcon = new Label();
+            lblIcon.Text = iconText;
+            lblIcon.Font = new Font("Segoe UI", 36);
+            lblIcon.ForeColor = Color.FromArgb(30, 255, 255, 255);
+            lblIcon.Size = new Size(60, 60);
+            lblIcon.Location = new Point(w - 75, (h - 60) / 2);
+            lblIcon.TextAlign = ContentAlignment.MiddleCenter;
+            card.Controls.Add(lblIcon);
+
+            // Lift-up hover micro-animations
+            EventHandler onEnter = (s, e) => {
+                if (card.Tag != null && card.Tag is int origY)
+                {
+                    card.Location = new Point(card.Left, origY - 6);
+                }
+            };
+
+            EventHandler onLeave = (s, e) => {
+                if (card.Tag != null && card.Tag is int origY)
+                {
+                    card.Location = new Point(card.Left, origY);
+                }
+            };
+
+            card.MouseEnter += onEnter;
+            card.MouseLeave += onLeave;
+            lblTitle.MouseEnter += onEnter;
+            lblTitle.MouseLeave += onLeave;
+            valueLabel.MouseEnter += onEnter;
+            valueLabel.MouseLeave += onLeave;
+            lblIcon.MouseEnter += onEnter;
+            lblIcon.MouseLeave += onLeave;
+
+            // Draw a subtle border outline
+            card.Paint += (s, e) => {
+                using (Pen borderPen = new Pen(Color.FromArgb(40, 255, 255, 255), 1.5f))
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    Rectangle rect = card.ClientRectangle;
+                    rect.Width -= 1;
+                    rect.Height -= 1;
+                    using (GraphicsPath path = GetRoundedRectPath(rect, 18))
+                    {
+                        e.Graphics.DrawPath(borderPen, path);
+                    }
+                }
+            };
 
             try { card.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, w, h, 18, 18)); } catch { }
             return card;
@@ -556,11 +685,15 @@ namespace house_management
         {
             pnlAddHouseDialog = new Panel();
             pnlAddHouseDialog.Size = new Size(400, 320);
-            pnlAddHouseDialog.Location = new Point((860 - 400) / 2, (620 - 320) / 2);
+            pnlAddHouseDialog.Location = new Point((pnlMainContent.Width - 400) / 2, (pnlMainContent.Height - 320) / 2);
             pnlAddHouseDialog.BackColor = Color.FromArgb(35, 22, 48);
             pnlAddHouseDialog.BorderStyle = BorderStyle.FixedSingle;
             pnlAddHouseDialog.Visible = false;
             pnlMainContent.Controls.Add(pnlAddHouseDialog);
+
+            pnlMainContent.Resize += (s, e) => {
+                pnlAddHouseDialog.Location = new Point((pnlMainContent.Width - pnlAddHouseDialog.Width) / 2, (pnlMainContent.Height - pnlAddHouseDialog.Height) / 2);
+            };
 
             Label lblTitle = new Label
             {
@@ -701,9 +834,55 @@ namespace house_management
         {
             btnDashboard.BackColor = Color.Transparent;
             btnHouses.BackColor = Color.Transparent;
+            if (btnTenants != null) btnTenants.BackColor = Color.Transparent;
+            if (btnRentals != null) btnRentals.BackColor = Color.Transparent;
+            if (btnUsers != null) btnUsers.BackColor = Color.Transparent;
 
-            activeBtn.BackColor = activeBtnColor;
-            try { activeBtn.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, activeBtn.Width, activeBtn.Height, 12, 12)); } catch { }
+            activeBtn.BackColor = Color.FromArgb(30, 255, 255, 255);
+            try { activeBtn.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, activeBtn.Width, activeBtn.Height, 8, 8)); } catch { }
+
+            if (pnlActiveIndicator != null)
+            {
+                pnlActiveIndicator.Location = new Point(activeBtn.Left - 12, activeBtn.Top);
+                pnlActiveIndicator.Visible = true;
+                pnlActiveIndicator.BringToFront();
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the header banner (welcome text + role) from the current session.
+        /// </summary>
+        private void UpdateWelcomeBanner()
+        {
+            if (lblWelcomeUser == null) return;
+
+            if (Models.UserSession.IsAuthenticated)
+            {
+                var u = Models.UserSession.CurrentUser;
+                string displayName = !string.IsNullOrWhiteSpace(u.FullName) ? u.FullName : u.Username;
+                lblWelcomeUser.Text = "Welcome Back, " + displayName;
+
+                string roleText;
+                switch (u.Role)
+                {
+                    case Models.UserRole.Admin: roleText = "System Administrator"; break;
+                    case Models.UserRole.Manager: roleText = "Manager"; break;
+                    default: roleText = "User"; break;
+                }
+                // Update the role label that sits just under the welcome text.
+                foreach (Control c in pnlHeader.Controls)
+                {
+                    if (c is Label && c.Font.Style == FontStyle.Regular && c.Top >= 40 && c.Top <= 50)
+                    {
+                        c.Text = roleText;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                lblWelcomeUser.Text = "Welcome Back";
+            }
         }
 
         private void ShowHousesGrid()
@@ -719,6 +898,11 @@ namespace house_management
             cardTotalHouses.Visible = false;
             cardAvailableHouses.Visible = false;
             cardRentedHouses.Visible = false;
+
+            // Hide other views
+            HideUsersView();
+            HideTenantsView();
+            HideRentalsView();
 
             if (txtSearch.Text == " 🔍 Search...")
             {
@@ -746,10 +930,32 @@ namespace house_management
             cardAvailableHouses.Visible = true;
             cardRentedHouses.Visible = true;
 
+            // Hide other views
+            HideUsersView();
+            HideTenantsView();
+            HideRentalsView();
+
             var houses = DatabaseHelper.GetHouses();
             lblTotalValue.Text = houses.Count.ToString();
             lblAvailableValue.Text = houses.FindAll(h => h.Status == "Available").Count.ToString();
             lblRentedValue.Text = houses.FindAll(h => h.Status == "Rented").Count.ToString();
+        }
+
+        /// <summary>
+        /// Centralised "hide every user-module control" helper so the
+        /// dashboard and houses views never leak user UI on top.
+        /// </summary>
+        private void HideUsersView()
+        {
+            if (dgvUsers != null) dgvUsers.Visible = false;
+            if (txtUserSearch != null) txtUserSearch.Visible = false;
+            if (btnAddUser != null) btnAddUser.Visible = false;
+            if (btnEditUser != null) btnEditUser.Visible = false;
+            if (btnDeleteUser != null) btnDeleteUser.Visible = false;
+            if (btnResetUserPassword != null) btnResetUserPassword.Visible = false;
+            if (pnlUserDialog != null) pnlUserDialog.Visible = false;
+            if (pnlChangePasswordDialog != null) pnlChangePasswordDialog.Visible = false;
+            if (pnlResetPasswordDialog != null) pnlResetPasswordDialog.Visible = false;
         }
 
         private Button CreateSidebarButton(string text, int topLocation)
@@ -926,9 +1132,10 @@ namespace house_management
         private void BuildControlBox()
         {
             pnlControlBox = new Panel();
-            pnlControlBox.Size = new Size(90, 40);
+            pnlControlBox.Size = new Size(135, 40);
             pnlControlBox.Location = new Point(this.Width - pnlControlBox.Width, 0);
             pnlControlBox.BackColor = Color.Transparent;
+            pnlControlBox.Anchor = AnchorStyles.Top | AnchorStyles.Right;
 
             btnHeaderMinimize = new Button();
             btnHeaderMinimize.Text = "─";
@@ -950,6 +1157,26 @@ namespace house_management
                 btnHeaderMinimize.ForeColor = Color.FromArgb(200, 190, 210);
             };
 
+            btnHeaderMaximize = new Button();
+            btnHeaderMaximize.Text = "🗖";
+            btnHeaderMaximize.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+            btnHeaderMaximize.ForeColor = Color.FromArgb(200, 190, 210);
+            btnHeaderMaximize.BackColor = Color.Transparent;
+            btnHeaderMaximize.FlatStyle = FlatStyle.Flat;
+            btnHeaderMaximize.FlatAppearance.BorderSize = 0;
+            btnHeaderMaximize.Size = new Size(45, 40);
+            btnHeaderMaximize.Location = new Point(45, 0);
+            btnHeaderMaximize.Cursor = Cursors.Hand;
+            btnHeaderMaximize.Click += (s, e) => MaximizeRestoreForm();
+            btnHeaderMaximize.MouseEnter += (s, e) => {
+                btnHeaderMaximize.BackColor = Color.FromArgb(40, 255, 255, 255);
+                btnHeaderMaximize.ForeColor = Color.White;
+            };
+            btnHeaderMaximize.MouseLeave += (s, e) => {
+                btnHeaderMaximize.BackColor = Color.Transparent;
+                btnHeaderMaximize.ForeColor = Color.FromArgb(200, 190, 210);
+            };
+
             btnHeaderExit = new Button();
             btnHeaderExit.Text = "✕";
             btnHeaderExit.Font = new Font("Segoe UI", 10, FontStyle.Bold);
@@ -958,7 +1185,7 @@ namespace house_management
             btnHeaderExit.FlatStyle = FlatStyle.Flat;
             btnHeaderExit.FlatAppearance.BorderSize = 0;
             btnHeaderExit.Size = new Size(45, 40);
-            btnHeaderExit.Location = new Point(45, 0);
+            btnHeaderExit.Location = new Point(90, 0);
             btnHeaderExit.Cursor = Cursors.Hand;
             btnHeaderExit.Click += (s, e) => Application.Exit();
             btnHeaderExit.MouseEnter += (s, e) => {
@@ -971,9 +1198,26 @@ namespace house_management
             };
 
             pnlControlBox.Controls.Add(btnHeaderMinimize);
+            pnlControlBox.Controls.Add(btnHeaderMaximize);
             pnlControlBox.Controls.Add(btnHeaderExit);
             this.Controls.Add(pnlControlBox);
             pnlControlBox.BringToFront();
+        }
+
+        private void MaximizeRestoreForm()
+        {
+            if (this.WindowState == FormWindowState.Maximized)
+            {
+                this.WindowState = FormWindowState.Normal;
+                if (btnHeaderMaximize != null) btnHeaderMaximize.Text = "🗖";
+            }
+            else
+            {
+                Screen currentScreen = Screen.FromControl(this);
+                this.MaximizedBounds = currentScreen.WorkingArea;
+                this.WindowState = FormWindowState.Maximized;
+                if (btnHeaderMaximize != null) btnHeaderMaximize.Text = "🗗";
+            }
         }
 
         private GraphicsPath GetRoundedRectPath(Rectangle rect, int radius)
