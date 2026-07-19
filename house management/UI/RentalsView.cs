@@ -75,11 +75,11 @@ namespace house_management
             };
             pnlMainContent.Controls.Add(txtRentalSearch);
 
-            btnDeleteRental = CreateActionButton("🗑 Terminate Contract", deleteBtnColor, 460, 180);
+            btnDeleteRental = CreateActionButton("🗑 Terminate", deleteBtnColor, 580, ActionButtonWidth);
             btnDeleteRental.Click += (s, e) => HandleDeleteRental();
             pnlMainContent.Controls.Add(btnDeleteRental);
 
-            btnAddRental = CreateActionButton("+ Add Rental", buttonColor, 650, 180);
+            btnAddRental = CreateActionButton("+ Add Rental", buttonColor, 710, ActionButtonWidth);
             btnAddRental.Click += (s, e) => OpenAddRentalDialog();
             pnlMainContent.Controls.Add(btnAddRental);
 
@@ -91,16 +91,8 @@ namespace house_management
         {
             if (pnlRentalDialog == null || dgvRentals == null || pnlMainContent == null) return;
 
-            // Layout top row controls dynamically from the right edge
-            int rightEdge = pnlMainContent.Width - 25;
-            if (btnAddRental != null)
-            {
-                btnAddRental.Left = rightEdge - btnAddRental.Width;
-                if (btnDeleteRental != null)
-                {
-                    btnDeleteRental.Left = btnAddRental.Left - btnDeleteRental.Width - 15;
-                }
-            }
+            // Action buttons cascade right-to-left via the shared helper.
+            LayoutActionBarRow(btnDeleteRental, btnAddRental);
 
             if (pnlRentalDialog.Visible)
             {

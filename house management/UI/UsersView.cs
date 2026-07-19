@@ -136,19 +136,19 @@ namespace house_management
             };
             pnlMainContent.Controls.Add(txtUserSearch);
 
-            btnResetUserPassword = CreateUserActionButton("🔑 Reset", Color.FromArgb(60, 80, 130), 430, 95);
+            btnResetUserPassword = CreateActionButton("🔑 Reset", Color.FromArgb(60, 80, 130), 430, ActionButtonWidth);
             btnResetUserPassword.Click += (s, e) => HandleResetUserPassword();
             pnlMainContent.Controls.Add(btnResetUserPassword);
 
-            btnDeleteUser = CreateUserActionButton("🗑 Delete", deleteBtnColor, 535, 95);
+            btnDeleteUser = CreateActionButton("🗑 Delete", deleteBtnColor, 580, ActionButtonWidth);
             btnDeleteUser.Click += (s, e) => HandleDeleteUser();
             pnlMainContent.Controls.Add(btnDeleteUser);
 
-            btnEditUser = CreateUserActionButton("✎ Edit", Color.FromArgb(70, 110, 90), 640, 95);
+            btnEditUser = CreateActionButton("✎ Edit", Color.FromArgb(70, 110, 90), 710, ActionButtonWidth);
             btnEditUser.Click += (s, e) => HandleEditUser();
             pnlMainContent.Controls.Add(btnEditUser);
 
-            btnAddUser = CreateUserActionButton("+ Add User", buttonColor, 745, 90);
+            btnAddUser = CreateActionButton("+ Add User", buttonColor, 840, ActionButtonWidth);
             btnAddUser.Click += (s, e) => OpenAddUserDialog();
             pnlMainContent.Controls.Add(btnAddUser);
 
@@ -158,54 +158,17 @@ namespace house_management
             BuildResetPasswordDialog();
         }
 
-        private Button CreateUserActionButton(string text, Color backColor, int xLocation, int width)
-        {
-            Button btn = new Button
-            {
-                Text = text,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = backColor,
-                FlatStyle = FlatStyle.Flat,
-                Size = new Size(width, 40),
-                Location = new Point(xLocation, 20),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Cursor = Cursors.Hand,
-                Visible = false
-            };
-            btn.FlatAppearance.BorderSize = 0;
-
-            Color original = backColor;
-            Color hover = ControlPaint.Light(backColor, 0.15f);
-            btn.MouseEnter += (s, e) => btn.BackColor = hover;
-            btn.MouseLeave += (s, e) => btn.BackColor = original;
-
-            try { btn.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, btn.Width, btn.Height, 10, 10)); } catch { }
-            return btn;
-        }
+        // =====================================================================
+        //  NAVIGATION
+        // =====================================================================
 
         private void LayoutUserViews()
         {
             if (pnlUserDialog == null || dgvUsers == null || pnlMainContent == null) return;
 
-            // Layout top row controls dynamically from the right edge
-            int rightEdge = pnlMainContent.Width - 25;
-            if (btnAddUser != null)
-            {
-                btnAddUser.Left = rightEdge - btnAddUser.Width;
-                if (btnEditUser != null)
-                {
-                    btnEditUser.Left = btnAddUser.Left - btnEditUser.Width - 15;
-                    if (btnDeleteUser != null)
-                    {
-                        btnDeleteUser.Left = btnEditUser.Left - btnDeleteUser.Width - 15;
-                        if (btnResetUserPassword != null)
-                        {
-                            btnResetUserPassword.Left = btnDeleteUser.Left - btnResetUserPassword.Width - 15;
-                        }
-                    }
-                }
-            }
+            // All four action buttons cascade right-to-left via the shared
+            // helper, guaranteeing consistent spacing with the other modules.
+            LayoutActionBarRow(btnResetUserPassword, btnDeleteUser, btnEditUser, btnAddUser);
 
             if (pnlUserDialog.Visible)
             {

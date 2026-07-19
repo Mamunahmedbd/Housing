@@ -83,15 +83,15 @@ namespace house_management
             };
             pnlMainContent.Controls.Add(txtTenantSearch);
 
-            btnDeleteTenant = CreateActionButton("🗑 Delete Selected", deleteBtnColor, 430, 200);
+            btnDeleteTenant = CreateActionButton("🗑 Delete", deleteBtnColor, 430, ActionButtonWidth);
             btnDeleteTenant.Click += (s, e) => HandleDeleteTenant();
             pnlMainContent.Controls.Add(btnDeleteTenant);
 
-            btnEditTenant = CreateActionButton("✎ Edit Selected", Color.FromArgb(70, 110, 90), 640, 160);
+            btnEditTenant = CreateActionButton("✎ Edit", Color.FromArgb(70, 110, 90), 580, ActionButtonWidth);
             btnEditTenant.Click += (s, e) => HandleEditTenant();
             pnlMainContent.Controls.Add(btnEditTenant);
 
-            btnAddTenant = CreateActionButton("+ Add New Tenant", buttonColor, 810, 180);
+            btnAddTenant = CreateActionButton("+ Add Tenant", buttonColor, 710, ActionButtonWidth);
             btnAddTenant.Click += (s, e) => OpenAddTenantDialog();
             pnlMainContent.Controls.Add(btnAddTenant);
 
@@ -99,32 +99,6 @@ namespace house_management
             BuildTenantDialog();
 
             dgvTenants.CellDoubleClick += (s, e) => HandleEditTenant();
-        }
-
-        private Button CreateActionButton(string text, Color backColor, int x, int width)
-        {
-            Button btn = new Button
-            {
-                Text = text,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = backColor,
-                FlatStyle = FlatStyle.Flat,
-                Size = new Size(width, 40),
-                Location = new Point(x, 20),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Cursor = Cursors.Hand,
-                Visible = false
-            };
-            btn.FlatAppearance.BorderSize = 0;
-
-            Color original = backColor;
-            Color hover = ControlPaint.Light(backColor, 0.15f);
-            btn.MouseEnter += (s, e) => btn.BackColor = hover;
-            btn.MouseLeave += (s, e) => btn.BackColor = original;
-
-            try { btn.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, btn.Width, btn.Height, 10, 10)); } catch { }
-            return btn;
         }
 
         private void BuildTenantsGrid()
@@ -185,20 +159,9 @@ namespace house_management
         {
             if (pnlTenantDialog == null || dgvTenants == null || pnlMainContent == null) return;
 
-            // Layout top row controls dynamically from the right edge
-            int rightEdge = pnlMainContent.Width - 25;
-            if (btnAddTenant != null)
-            {
-                btnAddTenant.Left = rightEdge - btnAddTenant.Width;
-                if (btnEditTenant != null)
-                {
-                    btnEditTenant.Left = btnAddTenant.Left - btnEditTenant.Width - 15;
-                    if (btnDeleteTenant != null)
-                    {
-                        btnDeleteTenant.Left = btnEditTenant.Left - btnDeleteTenant.Width - 15;
-                    }
-                }
-            }
+            // All three action buttons cascade right-to-left via the shared
+            // helper, guaranteeing consistent spacing with the other modules.
+            LayoutActionBarRow(btnDeleteTenant, btnEditTenant, btnAddTenant);
 
             if (pnlTenantDialog.Visible)
             {

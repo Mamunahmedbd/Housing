@@ -457,56 +457,21 @@ namespace house_management
             };
             pnlMainContent.Controls.Add(txtSearch);
 
-            // زر حذف منزل - تم تحديد موقعه الأفقي بدقة هندسية تمنع التداخل
-            btnDeleteHouse = new Button();
-            btnDeleteHouse.Text = "🗑 Delete Selected";
-            btnDeleteHouse.Font = new Font("Segoe UI", 11, FontStyle.Bold);
-            btnDeleteHouse.ForeColor = Color.White;
-            btnDeleteHouse.BackColor = deleteBtnColor;
-            btnDeleteHouse.FlatStyle = FlatStyle.Flat;
-            btnDeleteHouse.FlatAppearance.BorderSize = 0;
-            btnDeleteHouse.Size = new Size(200, 40);
-            btnDeleteHouse.Location = new Point(450, 20);
-            btnDeleteHouse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnDeleteHouse.Cursor = Cursors.Hand;
-            btnDeleteHouse.Visible = false;
-
+            // Action buttons — all three use the shared CreateActionButton
+            // helper so their size, styling and hover behaviour are identical
+            // to the other modules. LayoutHouseViews cascades them via the
+            // shared LayoutActionBarRow helper, so they never overlap.
+            btnDeleteHouse = CreateActionButton("🗑 Delete", deleteBtnColor, 450, ActionButtonWidth);
             btnDeleteHouse.MouseEnter += (s, e) => btnDeleteHouse.BackColor = deleteBtnHoverColor;
             btnDeleteHouse.MouseLeave += (s, e) => btnDeleteHouse.BackColor = deleteBtnColor;
             btnDeleteHouse.Click += (s, e) => HandleDeleteHouse();
             pnlMainContent.Controls.Add(btnDeleteHouse);
 
-            // زر تعديل منزل - يظهر فقط عند تحديد صف
-            btnEditHouse = new Button();
-            btnEditHouse.Text = "✎ Edit Selected";
-            btnEditHouse.Font = new Font("Segoe UI", 11, FontStyle.Bold);
-            btnEditHouse.ForeColor = Color.White;
-            btnEditHouse.BackColor = Color.FromArgb(70, 110, 90);
-            btnEditHouse.FlatStyle = FlatStyle.Flat;
-            btnEditHouse.FlatAppearance.BorderSize = 0;
-            btnEditHouse.Size = new Size(160, 40);
-            btnEditHouse.Location = new Point(660, 20);
-            btnEditHouse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnEditHouse.Cursor = Cursors.Hand;
-            btnEditHouse.Visible = false;
-
-            btnEditHouse.MouseEnter += (s, e) => btnEditHouse.BackColor = ControlPaint.Light(Color.FromArgb(70, 110, 90), 0.15f);
-            btnEditHouse.MouseLeave += (s, e) => btnEditHouse.BackColor = Color.FromArgb(70, 110, 90);
+            btnEditHouse = CreateActionButton("✎ Edit", Color.FromArgb(70, 110, 90), 580, ActionButtonWidth);
             btnEditHouse.Click += (s, e) => HandleEditHouse();
             pnlMainContent.Controls.Add(btnEditHouse);
 
-            // زر إضافة منزل جديد - مستقر وثابت في أقصى اليمين بالتوازي التام
-            btnAddHouse = new Button();
-            btnAddHouse.Text = "+ Add New House";
-            btnAddHouse.Font = new Font("Segoe UI", 11, FontStyle.Bold);
-            btnAddHouse.ForeColor = Color.White;
-            btnAddHouse.BackColor = buttonColor;
-            btnAddHouse.FlatStyle = FlatStyle.Flat;
-            btnAddHouse.FlatAppearance.BorderSize = 0;
-            btnAddHouse.Size = new Size(170, 40);
-            btnAddHouse.Location = new Point(830, 20);
-            btnAddHouse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnAddHouse.Cursor = Cursors.Hand;
+            btnAddHouse = CreateActionButton("+ Add House", buttonColor, 710, ActionButtonWidth);
             btnAddHouse.Click += (s, e) => OpenAddHouseDialog();
             pnlMainContent.Controls.Add(btnAddHouse);
 
@@ -560,9 +525,7 @@ namespace house_management
             dgvHouses.Columns.Add("Status", "Status");
 
             try { txtSearch.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, txtSearch.Width, txtSearch.Height, 10, 10)); } catch { }
-            try { btnAddHouse.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, btnAddHouse.Width, btnAddHouse.Height, 10, 10)); } catch { }
-            try { btnEditHouse.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, btnEditHouse.Width, btnEditHouse.Height, 10, 10)); } catch { }
-            try { btnDeleteHouse.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, btnDeleteHouse.Width, btnDeleteHouse.Height, 10, 10)); } catch { }
+            // Button corner rounding is handled by CreateActionButton.
         }
 
         private void FilterHouses(string keyword)
@@ -822,16 +785,10 @@ namespace house_management
         {
             if (pnlAddHouseDialog == null || dgvHouses == null || pnlMainContent == null) return;
 
-            // Layout top row controls dynamically from the right edge
-            int rightEdge = pnlMainContent.Width - 25;
-            if (btnAddHouse != null)
-            {
-                btnAddHouse.Left = rightEdge - btnAddHouse.Width;
-                if (btnDeleteHouse != null)
-                {
-                    btnDeleteHouse.Left = btnAddHouse.Left - btnDeleteHouse.Width - 15;
-                }
-            }
+            // All three action buttons cascade right-to-left via the shared
+            // helper. This is the line that was previously missing
+            // btnEditHouse, causing it to collide with btnAddHouse.
+            LayoutActionBarRow(btnDeleteHouse, btnEditHouse, btnAddHouse);
 
             if (pnlAddHouseDialog.Visible)
             {
